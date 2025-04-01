@@ -40,22 +40,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         final data = event.snapshot.value as Map<dynamic, dynamic>;
 
         setState(() {
-          // Store sensor data
           sensorData['temperature'] = data['temperature'] ?? 0;
           sensorData['humidity'] = data['humidity'] ?? 0;
           sensorData['soilMoisture'] = data['soilMoisture'] ?? 0;
           sensorData['distance'] = data['distance'] ?? 0;
 
-          // Add new temperature point, keeping only the last 15 values
           if (tempDataPoints.length >= 15) {
-            tempDataPoints.removeAt(0); // Remove oldest value
+            tempDataPoints.removeAt(0);
           }
           tempDataPoints.add(
             FlSpot(tempDataPoints.length.toDouble(),
                 sensorData['temperature'].toDouble()),
           );
 
-          // Add new soil moisture point, keeping only the last 10 values
           if (moistureDataPoints.length >= 10) {
             moistureDataPoints.removeAt(0);
           }
@@ -72,6 +69,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final padding = size.width * 0.05;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -84,13 +84,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(padding),
         child: ListView(
           children: [
             GridView.count(
               crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
+              crossAxisSpacing: size.width * 0.04,
+              mainAxisSpacing: size.height * 0.02,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               children: [
@@ -116,12 +116,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: size.height * 0.02),
 
             // Temperature Trend Graph
-            const Text('Temperature Trend'),
+            Text(
+              'Temperature Trend',
+              style: TextStyle(
+                  fontSize: size.width * 0.045, fontWeight: FontWeight.bold),
+            ),
             SizedBox(
-              height: 200,
+              height: size.height * 0.25,
               child: LineChart(
                 LineChartData(
                   lineBarsData: [
@@ -145,12 +149,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: size.height * 0.02),
 
             // Soil Moisture Trend Graph
-            const Text('Soil Moisture Trend'),
+            Text(
+              'Soil Moisture Trend',
+              style: TextStyle(
+                  fontSize: size.width * 0.045, fontWeight: FontWeight.bold),
+            ),
             SizedBox(
-              height: 200,
+              height: size.height * 0.25,
               child: LineChart(
                 LineChartData(
                   lineBarsData: [
@@ -180,7 +188,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     );
   }
 
-  // Evaluation functions for better insights
   String _evaluateTemperature(dynamic temp) {
     if (temp == null) return 'No Data';
     double tempValue = (temp as num).toDouble();

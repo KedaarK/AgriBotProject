@@ -16,7 +16,7 @@ app = Flask(__name__)
 otp_store = {}
 
 EMAIL_ADDRESS = "kedaarkate@gmail.com"
-EMAIL_PASSWORD = "rjwu whro dvmj zahd"
+EMAIL_PASSWORD = "mbjr vwxl mmes gmln"
 # Load Model
 model = tf.keras.models.load_model("models/trained_plant_disease_model.keras")
 model2 = pickle.load(open('models/model.pkl','rb'))

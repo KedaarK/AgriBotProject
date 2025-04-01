@@ -86,13 +86,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    var h = MediaQuery.of(context).size.height;
-    var w = MediaQuery.of(context).size.width;
+    var screenHeight = MediaQuery.of(context).size.height;
+    var screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
       body: SizedBox(
-        height: h,
-        width: w,
+        height: screenHeight,
+        width: screenWidth,
         child: Stack(
           children: [
             // Background Image
@@ -114,8 +114,8 @@ class _LoginScreenState extends State<LoginScreen> {
               right: 0,
               bottom: bottomPosition,
               child: Container(
-                height: (1.12 * h) / 2,
-                width: w,
+                height: (1.12 * screenHeight) / 2,
+                width: screenWidth,
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.only(
@@ -131,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       'Welcome Back',
                       style: FontHelper.getStyle(
                         textColor: const Color.fromARGB(255, 70, 116, 75),
-                        fontSize: 52,
+                        fontSize: screenWidth * 0.14, // Responsive font size
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -139,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       'Login to your Account',
                       style: FontHelper.getStyle(
                         textColor: const Color.fromARGB(255, 192, 192, 192),
-                        fontSize: 20,
+                        fontSize: screenWidth * 0.06, // Responsive font size
                         fontWeight: FontWeight.w600,
                       ),
                     ),

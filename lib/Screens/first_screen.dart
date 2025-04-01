@@ -26,18 +26,18 @@ class FirstScreen extends StatelessWidget {
               ),
             ),
             child: Container(
-              padding: EdgeInsets.only(left: 32),
+              padding: EdgeInsets.only(left: w * 0.08), // Dynamic padding
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(
-                    height: 100,
+                    height: h * 0.1, // Adjusted height based on screen height
                   ),
                   Text(
                     'Cultivate',
                     style: FontHelper.getStyle(
                       textColor: Colors.white,
-                      fontSize: 64,
+                      fontSize: w * 0.16, // Adjust font size based on width
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -45,7 +45,7 @@ class FirstScreen extends StatelessWidget {
                     'your future',
                     style: FontHelper.getStyle(
                       textColor: Colors.white,
-                      fontSize: 64,
+                      fontSize: w * 0.16, // Adjust font size based on width
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -53,7 +53,7 @@ class FirstScreen extends StatelessWidget {
                     'with',
                     style: FontHelper.getStyle(
                       textColor: Colors.white,
-                      fontSize: 64,
+                      fontSize: w * 0.16, // Adjust font size based on width
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -61,12 +61,12 @@ class FirstScreen extends StatelessWidget {
                     'AgriBot',
                     style: FontHelper.getStyle(
                       textColor: Colors.white,
-                      fontSize: 64,
+                      fontSize: w * 0.16, // Adjust font size based on width
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   SizedBox(
-                    height: 224,
+                    height: h * 0.3, // Adjusted height based on screen height
                   ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.center,

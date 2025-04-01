@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:agribot/Services/api_service.dart'; // Import ApiService
+import 'package:agribot/Services/api_service.dart';
 
 class RecommendationPage extends StatefulWidget {
   @override
@@ -18,8 +18,7 @@ class _RecommendationPageState extends State<RecommendationPage> {
 
   String _recommendedCrop = '';
   bool _isLoading = false;
-  final ApiService _apiService =
-      ApiService(); //  Create an instance of ApiService
+  final ApiService _apiService = ApiService();
 
   Future<void> _getRecommendation() async {
     if (_formKey.currentState!.validate()) {
@@ -72,14 +71,18 @@ class _RecommendationPageState extends State<RecommendationPage> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final padding = size.width * 0.05;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Crop Recommendation'),
         backgroundColor: Colors.green[900],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+              vertical: size.height * 0.02, horizontal: padding),
           child: Form(
             key: _formKey,
             child: Column(
@@ -88,33 +91,35 @@ class _RecommendationPageState extends State<RecommendationPage> {
                 Text(
                   'Enter Soil & Weather Parameters',
                   style: TextStyle(
-                      fontSize: 20,
+                      fontSize: size.width * 0.05,
                       fontWeight: FontWeight.bold,
                       color: Colors.green[800]),
                   textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 20),
-                _buildTextField(_nController, 'Nitrogen (N)', false),
-                _buildTextField(_pController, 'Phosphorus (P)', false),
-                _buildTextField(_kController, 'Potassium (K)', false),
+                SizedBox(height: size.height * 0.02),
+                _buildTextField(_nController, 'Nitrogen (N)', false, size),
+                _buildTextField(_pController, 'Phosphorus (P)', false, size),
+                _buildTextField(_kController, 'Potassium (K)', false, size),
                 _buildTextField(
-                    _temperatureController, 'Temperature (°C)', true),
-                _buildTextField(_humidityController, 'Humidity (%)', true),
-                _buildTextField(_phController, 'pH Level', true),
-                _buildTextField(_rainfallController, 'Rainfall (mm)', true),
-                SizedBox(height: 20),
+                    _temperatureController, 'Temperature (°C)', true, size),
+                _buildTextField(
+                    _humidityController, 'Humidity (%)', true, size),
+                _buildTextField(_phController, 'pH Level', true, size),
+                _buildTextField(
+                    _rainfallController, 'Rainfall (mm)', true, size),
+                SizedBox(height: size.height * 0.02),
                 ElevatedButton(
                   onPressed: _isLoading ? null : _getRecommendation,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green[800],
-                    padding: EdgeInsets.symmetric(vertical: 16),
+                    padding: EdgeInsets.symmetric(vertical: size.height * 0.02),
                   ),
                   child: _isLoading
                       ? CircularProgressIndicator(color: Colors.black)
                       : Text('Get Recommendation',
-                          style: TextStyle(fontSize: 18)),
+                          style: TextStyle(fontSize: size.width * 0.045)),
                 ),
-                SizedBox(height: 20),
+                SizedBox(height: size.height * 0.02),
                 if (_recommendedCrop.isNotEmpty)
                   Card(
                     color: Colors.green.shade50,
@@ -122,19 +127,21 @@ class _RecommendationPageState extends State<RecommendationPage> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: EdgeInsets.all(size.width * 0.04),
                       child: Column(
                         children: [
                           Text(
                             'Recommended Crop:',
                             style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
+                                fontSize: size.width * 0.045,
+                                fontWeight: FontWeight.bold),
                           ),
-                          SizedBox(height: 10),
+                          SizedBox(height: size.height * 0.01),
                           Text(
                             _recommendedCrop,
                             style: TextStyle(
-                                fontSize: 22, color: Colors.green[700]),
+                                fontSize: size.width * 0.055,
+                                color: Colors.green[700]),
                           ),
                         ],
                       ),
@@ -148,10 +155,10 @@ class _RecommendationPageState extends State<RecommendationPage> {
     );
   }
 
-  Widget _buildTextField(
-      TextEditingController controller, String label, bool isDouble) {
+  Widget _buildTextField(TextEditingController controller, String label,
+      bool isDouble, Size size) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: EdgeInsets.symmetric(vertical: size.height * 0.01),
       child: TextFormField(
         controller: controller,
         keyboardType:
@@ -159,6 +166,8 @@ class _RecommendationPageState extends State<RecommendationPage> {
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(
+              vertical: size.height * 0.02, horizontal: size.width * 0.04),
         ),
         validator: (value) {
           if (value == null || value.isEmpty) return 'Please enter $label';

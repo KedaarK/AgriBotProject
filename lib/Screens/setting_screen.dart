@@ -17,6 +17,9 @@ class _SettingScreenState extends State<SettingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    var screenWidth = MediaQuery.of(context).size.width;
+    var screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -26,7 +29,9 @@ class _SettingScreenState extends State<SettingScreen> {
           icon: const Icon(Icons.arrow_back_ios_new),
         ),
         title: Padding(
-          padding: const EdgeInsets.only(left: 92),
+          padding: EdgeInsets.only(
+              left: screenWidth *
+                  0.2), // Adjust title spacing based on screen width
           child: const Text(
             'Settings',
             style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
@@ -34,7 +39,7 @@ class _SettingScreenState extends State<SettingScreen> {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04), // Dynamic padding
         children: [
           // ACCOUNT SETTINGS HEADER
           const Text(

@@ -10,8 +10,9 @@ class ControlsScreen extends StatefulWidget {
 }
 
 class _ControlsScreenState extends State<ControlsScreen> {
-  late final WebViewController _controller; // Ensure late initialization
-  bool _isIpAvailable = false; // Track if IP is available
+  late final WebViewController _controller;
+  bool _isIpAvailable = false;
+  bool _isLoading = true;
 
   final String botControlUrl = "http://192.168.1.53/"; // Replace with actual IP
   final String youtubeVideoUrl =
@@ -24,41 +25,39 @@ class _ControlsScreenState extends State<ControlsScreen> {
     _checkIpAvailability();
   }
 
-  // Check if the IP is reachable
   Future<void> _checkIpAvailability() async {
     try {
       final response = await http.get(Uri.parse(botControlUrl));
       if (response.statusCode == 200) {
         setState(() {
           _isIpAvailable = true;
+          _isLoading = false;
         });
       } else {
         setState(() {
           _isIpAvailable = false;
+          _isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
         _isIpAvailable = false;
+        _isLoading = false;
       });
       print("Error checking IP availability: $e");
     }
   }
 
-  // Initialize the WebView controller
   void _initializeWebView() {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted);
   }
 
-  // Build the WebView or message based on IP availability
-  Widget _buildWebView() {
+  Widget _buildWebView(Size size) {
     if (_isIpAvailable) {
-      _controller.loadRequest(
-          Uri.parse(botControlUrl)); // Load bot control URL if IP is available
+      _controller.loadRequest(Uri.parse(botControlUrl));
       return WebViewWidget(controller: _controller);
     } else {
-      // If IP is not available, show the YouTube video instead
       _controller.loadRequest(Uri.parse(youtubeVideoUrl));
       return WebViewWidget(controller: _controller);
     }
@@ -66,6 +65,8 @@ class _ControlsScreenState extends State<ControlsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -74,10 +75,16 @@ class _ControlsScreenState extends State<ControlsScreen> {
         ),
         title: const Text("AgriBot Controls"),
       ),
-      body: Center(
-        child: _isIpAvailable == null
-            ? const CircularProgressIndicator() // Show loading indicator while checking IP
-            : _buildWebView(),
+      body: SafeArea(
+        child: Center(
+          child: _isLoading
+              ? CircularProgressIndicator()
+              : Container(
+                  width: size.width,
+                  height: size.height * 0.85,
+                  child: _buildWebView(size),
+                ),
+        ),
       ),
     );
   }
