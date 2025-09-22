@@ -1,0 +1,101 @@
+{
+  "@@locale": "en",
+
+  "taglineCultivate": "Cultivate",
+  "@taglineCultivate": { "description": "Hero line part 1" },
+
+  "taglineYourFuture": "your future",
+  "@taglineYourFuture": { "description": "Hero line part 2" },
+
+  "taglineWith": "with",
+  "@taglineWith": { "description": "Hero line part 3" },
+
+  "taglineAgribot": "AgriBot",
+  "@taglineAgribot": { "description": "Hero line part 4 (brand)" },
+
+  "tagline_multiline": "Cultivate\nyour future\nwith\nAgriBot",
+
+  "signIn": "Sign In",
+  "@signIn": { "description": "Primary CTA button" },
+
+  "createAccount": "Create An Account",
+  "@createAccount": { "description": "Link to registration" },
+
+  "selectLanguage": "Select Language",
+
+  "welcomeBack": "Welcome Back",
+  "loginToYourAccount": "Login to your Account",
+
+  "emailLabel": "Email",
+  "passwordLabel": "Password",
+
+  "rememberMe": "Remember Me",
+  "forgotPassword": "Forgot Password?",
+
+  "login": "Login",
+  "dontHaveAccount": "Don't Have an Account?",
+  "signUp": "Sign Up",
+
+  "enterAllDetails": "Please enter all details",
+  "enterValidEmail": "Please enter a valid email address",
+
+  "loginFailed": "Login failed: {error}",
+  "@loginFailed": {
+    "description": "Shown when login fails",
+    "placeholders": {
+      "error": { "type": "String", "example": "Wrong password" }
+    }
+  },
+
+  "registerTitle": "Register",
+  "registerSubtitle": "Create your own Account",
+  "nameLabel": "Name",
+  "sendOtp": "Send OTP",
+  "enterOtpLabel": "Enter OTP",
+  "verifyOtp": "Verify",
+  "reEnterPasswordLabel": "Re-Enter Password",
+  "selectRole": "Select Role",
+  "roleFarmer": "Farmer",
+  "roleAgronomist": "Agronomist",
+  "registerCta": "Register",
+  "alreadyHaveAccount": "Already Have an Account?",
+  "otpVerified": "OTP Verified! You can now register.",
+  "verifyOtpFirst": "Please verify your OTP before registering.",
+  "passwordsDoNotMatch": "Passwords do not match!",
+  "fillAllFields": "Please fill all fields",
+  "genericError": "Something went wrong",
+  "homeTitle": "Home",
+  "productsAndServices": "Products & Services",
+  "weatherLabel": "Weather",
+  "nowLabel": "NOW",
+  "errorLoadingWeather": "Error loading weather data",
+
+  "serviceCropRecommendationTitle": "Crop Recommendation",
+  "serviceCropRecommendationSubtitle": "Recommendation about the type of crops based on conditions.",
+  "serviceFertilizerPredictionTitle": "Fertilizer Prediction",
+  "serviceFertilizerPredictionSubtitle": "Find the best fertilizer for your crop based on soil.",
+  "serviceIrrigationAdviceTitle": "Irrigation Advice",
+  "serviceIrrigationAdviceSubtitle": "Get water management suggestions.",
+  "navHome": "Home",
+  "navUpload": "Upload",
+  "navAnalytics": "Analytics",
+  "navControls": "Controls",
+  "navSettings": "Settings",
+  "diseaseDetectionTitle": "Plant Disease Detection",
+  "uploadOrCaptureLeaf": "Upload or Capture Leaf Image",
+  "noImageSelected": "No image selected",
+  "takePicture": "Take a picture",
+  "chooseFromGallery": "Choose from gallery",
+  "analyzeButton": "Analyze",
+  "processing": "Analyzing…",
+  "resultHeader": "Result",
+  "predictedDisease": "Predicted Disease",
+  "confidenceLabel": "Confidence",
+  "topPredictions": "Top predictions",
+  "predictionFailed": "Prediction failed: {error}",
+  "@predictionFailed": {
+    "placeholders": {
+      "error": { "type": "String", "example": "Network error" }
+    }
+  }
+}

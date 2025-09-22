@@ -1,0 +1,83 @@
+{
+  "@@locale": "hi",
+
+  "taglineCultivate": "संवारें",
+  "taglineYourFuture": "अपना भविष्य",
+  "taglineWith": "के साथ",
+  "taglineAgribot": "AgriBot",
+
+  "tagline_multiline": "AgriBot के साथ\nअपना भविष्य\nसंवारें",
+
+  "signIn": "साइन इन",
+  "createAccount": "खाता बनाएं",
+  "selectLanguage": "भाषा चुनें",
+
+  "welcomeBack": "आपका स्वागत है",
+  "loginToYourAccount": "अपने खाते में लॉगिन करें",
+
+  "emailLabel": "ईमेल",
+  "passwordLabel": "पासवर्ड",
+
+  "rememberMe": "मुझे याद रखें",
+  "forgotPassword": "पासवर्ड भूल गए?",
+
+  "login": "लॉगिन",
+  "dontHaveAccount": "खाता नहीं है?",
+  "signUp": "साइन अप",
+
+  "enterAllDetails": "कृपया सभी विवरण भरें",
+  "enterValidEmail": "कृपया मान्य ईमेल दर्ज करें",
+  "loginFailed": "लॉगिन असफल: {error}",
+
+  "registerTitle": "रजिस्टर",
+  "registerSubtitle": "अपना खाता बनाएं",
+  "nameLabel": "नाम",
+  "sendOtp": "ओटीपी भेजें",
+  "enterOtpLabel": "ओटीपी दर्ज करें",
+  "verifyOtp": "सत्यापित करें",
+  "reEnterPasswordLabel": "पासवर्ड पुनः दर्ज करें",
+  "selectRole": "भूमिका चुनें",
+  "roleFarmer": "किसान",
+  "roleAgronomist": "कृषि विशेषज्ञ",
+  "registerCta": "रजिस्टर",
+  "alreadyHaveAccount": "पहले से खाता है?",
+  "otpVerified": "ओटीपी सत्यापित! अब आप रजिस्टर कर सकते हैं।",
+  "verifyOtpFirst": "कृपया रजिस्टर करने से पहले ओटीपी सत्यापित करें।",
+  "passwordsDoNotMatch": "पासवर्ड मेल नहीं खाते!",
+  "fillAllFields": "कृपया सभी फ़ील्ड भरें",
+  "genericError": "कुछ गलत हो गया",
+  "homeTitle": "होम",
+  "productsAndServices": "उत्पाद और सेवाएँ",
+  "weatherLabel": "मौसम",
+  "nowLabel": "अब",
+  "errorLoadingWeather": "मौसम डेटा लोड करने में त्रुटि",
+
+  "serviceCropRecommendationTitle": "फसल सिफारिश",
+  "serviceCropRecommendationSubtitle": "परिस्थितियों के आधार पर फसल प्रकार की सिफारिश।",
+  "serviceFertilizerPredictionTitle": "उर्वरक पूर्वानुमान",
+  "serviceFertilizerPredictionSubtitle": "मिट्टी के आधार पर आपकी फसल के लिए सर्वश्रेष्ठ उर्वरक खोजें।",
+  "serviceIrrigationAdviceTitle": "सिंचाई सलाह",
+  "serviceIrrigationAdviceSubtitle": "जल प्रबंधन के सुझाव प्राप्त करें।",
+  "navHome": "होम",
+  "navUpload": "अपलोड",
+  "navAnalytics": "विश्लेषण",
+  "navControls": "नियंत्रण",
+  "navSettings": "सेटिंग्स",
+  "diseaseDetectionTitle": "पौधा रोग पहचान",
+  "uploadOrCaptureLeaf": "पत्ते की छवि अपलोड करें या कैप्चर करें",
+  "noImageSelected": "कोई छवि चयनित नहीं",
+  "takePicture": "फोटो लें",
+  "chooseFromGallery": "गैलरी से चुनें",
+  "analyzeButton": "विश्लेषण करें",
+  "processing": "विश्लेषण हो रहा है…",
+  "resultHeader": "परिणाम",
+  "predictedDisease": "अनुमानित रोग",
+  "confidenceLabel": "विश्वसनीयता",
+  "topPredictions": "शीर्ष अनुमान",
+  "predictionFailed": "अनुमान विफल: {error}",
+  "@predictionFailed": {
+    "placeholders": {
+      "error": { "type": "String", "example": "नेटवर्क त्रुटि" }
+    }
+  }
+}

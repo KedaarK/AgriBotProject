@@ -5,9 +5,11 @@ import 'package:agribot/Screens/register_screen.dart';
 import 'package:agribot/Widgets/display_button.dart';
 import 'package:agribot/utils/font_helper.dart';
 import 'package:agribot/Screens/bottom_navigation.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final void Function(Locale) onChangeLanguage;
+  const LoginScreen({required this.onChangeLanguage, super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -29,20 +31,59 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  void _showLanguageDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(AppLocalizations.of(context)!.selectLanguage),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text('English'),
+                onTap: () {
+                  widget.onChangeLanguage(const Locale('en'));
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                title: const Text('हिन्दी'),
+                onTap: () {
+                  widget.onChangeLanguage(const Locale('hi'));
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                title: const Text('मराठी'),
+                onTap: () {
+                  widget.onChangeLanguage(const Locale('mr'));
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _login() async {
+    final l10n = AppLocalizations.of(context)!;
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter all details")),
+        SnackBar(content: Text(l10n.enterAllDetails)),
       );
       return;
     }
 
     if (!_isValidEmail(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter a valid email address")),
+        SnackBar(content: Text(l10n.enterValidEmail)),
       );
       return;
     }
@@ -59,37 +100,42 @@ class _LoginScreenState extends State<LoginScreen> {
         email: email,
         password: password,
         context: context,
+        onChangeLanguage: widget.onChangeLanguage,
       );
 
-      Navigator.pop(context); // Close loading dialog
+      if (mounted) Navigator.pop(context); // Close loading dialog
 
       // Navigate to Bottom Navigation Screen
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (context) =>
-                BottomNavigation()), // Replace with your Bottom Navigation Screen
-      );
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+              builder: (_) => BottomNavigation(
+                    onChangeLanguage: widget.onChangeLanguage,
+                  )),
+          (route) => false,
+        );
+      }
     } catch (e) {
-      Navigator.pop(context); // Close loading dialog on failure
+      if (mounted) Navigator.pop(context); // Close loading dialog on failure
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Login failed: ${e.toString()}")),
+        SnackBar(content: Text(l10n.loginFailed(e.toString()))),
       );
     }
   }
 
-  // Email Validation Function
   bool _isValidEmail(String email) {
-    String emailPattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
+    const emailPattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
     return RegExp(emailPattern).hasMatch(email);
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     var screenHeight = MediaQuery.of(context).size.height;
     var screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
+      key: const Key('LoginScreen'),
       body: SizedBox(
         height: screenHeight,
         width: screenWidth,
@@ -98,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
             // Background Image
             Positioned.fill(
               child: DecoratedBox(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   image: DecorationImage(
                     image: AssetImage('assets/images/firstScreenBg.png'),
                     fit: BoxFit.cover,
@@ -106,6 +152,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
+
+            // Tiny language icon (top-right), same as FirstScreen
+            Positioned(
+              top: 40,
+              right: 16,
+              child: IconButton(
+                icon: const Icon(Icons.language, color: Colors.white),
+                onPressed: _showLanguageDialog,
+                tooltip: l10n.selectLanguage,
+              ),
+            ),
+
             // Animated Login Container
             AnimatedPositioned(
               duration: const Duration(milliseconds: 600),
@@ -128,49 +186,58 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const SizedBox(height: 12),
                     Text(
-                      'Welcome Back',
+                      l10n.welcomeBack, // "Welcome Back"
                       style: FontHelper.getStyle(
                         textColor: const Color.fromARGB(255, 70, 116, 75),
-                        fontSize: screenWidth * 0.14, // Responsive font size
+                        fontSize: screenWidth * 0.14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
-                      'Login to your Account',
+                      l10n.loginToYourAccount, // "Login to your Account"
                       style: FontHelper.getStyle(
                         textColor: const Color.fromARGB(255, 192, 192, 192),
-                        fontSize: screenWidth * 0.06, // Responsive font size
+                        fontSize: screenWidth * 0.06,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 40),
 
-                    // Email Input Field
-                    _buildTextField(emailController, "Email", isEmail: true),
+                    // Email
+                    _buildTextField(
+                      emailController,
+                      l10n.emailLabel, // localized label
+                      isEmail: true,
+                      fieldKey: const Key('EmailField'),
+                    ),
 
-                    // Password Input Field
-                    _buildTextField(passwordController, "Password",
-                        isPassword: true),
+                    // Password
+                    _buildTextField(
+                      passwordController,
+                      l10n.passwordLabel, // localized label
+                      isPassword: true,
+                      fieldKey: const Key('PasswordField'),
+                    ),
 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Padding(
-                          padding: EdgeInsets.only(left: 36, bottom: 24),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 36, bottom: 24),
                           child: Text(
-                            'Remember Me',
-                            style: TextStyle(
+                            l10n.rememberMe,
+                            style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: Color.fromARGB(255, 192, 192, 192),
                             ),
                           ),
                         ),
-                        const Padding(
-                          padding: EdgeInsets.only(right: 36, bottom: 24),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 36, bottom: 24),
                           child: Text(
-                            'Forgot Password?',
-                            style: TextStyle(
+                            l10n.forgotPassword,
+                            style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: Color.fromARGB(255, 70, 116, 75),
@@ -182,8 +249,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     // Login Button
                     DisplayButton(
+                      buttonKey: const Key('LoginButton'),
                       bgColor: const Color.fromARGB(255, 70, 116, 75),
-                      text: 'Login',
+                      text: l10n.login,
                       onTap: _login,
                       radius: 30,
                     ),
@@ -194,7 +262,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       TextSpan(
                         children: [
                           TextSpan(
-                            text: 'Don\'t Have an Account? ',
+                            text: l10n.dontHaveAccount + ' ',
                             style: FontHelper.getStyle(
                               fontSize: 16,
                               textColor:
@@ -203,7 +271,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           TextSpan(
-                            text: 'Sign Up',
+                            text: l10n.signUp,
                             style: const TextStyle(
                               fontSize: 16,
                               color: Color.fromARGB(255, 70, 116, 75),
@@ -216,8 +284,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) =>
-                                          const RegisterScreen()),
+                                    builder: (context) => RegisterScreen(
+                                        onChangeLanguage:
+                                            widget.onChangeLanguage),
+                                  ),
                                 );
                               },
                           ),
@@ -235,8 +305,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   /// Input Field Widget
-  Widget _buildTextField(TextEditingController controller, String labelText,
-      {bool isPassword = false, bool isEmail = false}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String labelText, {
+    bool isPassword = false,
+    bool isEmail = false,
+    Key? fieldKey,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
       child: Container(
@@ -245,29 +320,24 @@ class _LoginScreenState extends State<LoginScreen> {
           borderRadius: BorderRadius.circular(20),
         ),
         child: TextFormField(
+          key: fieldKey,
           controller: controller,
           obscureText: isPassword,
           keyboardType:
               isEmail ? TextInputType.emailAddress : TextInputType.text,
           decoration: InputDecoration(
-            labelText: labelText, // Label text that moves up on focus
+            labelText: labelText,
             labelStyle: const TextStyle(
               color: Color.fromARGB(255, 70, 116, 75),
               fontWeight: FontWeight.w500,
             ),
             floatingLabelBehavior: FloatingLabelBehavior.auto,
             enabledBorder: OutlineInputBorder(
-              borderSide: const BorderSide(
-                color: Colors.grey,
-                width: 1,
-              ),
+              borderSide: const BorderSide(color: Colors.grey, width: 1),
               borderRadius: BorderRadius.circular(18),
             ),
             focusedBorder: OutlineInputBorder(
-              borderSide: const BorderSide(
-                color: Colors.green,
-                width: 2,
-              ),
+              borderSide: const BorderSide(color: Colors.green, width: 2),
               borderRadius: BorderRadius.circular(18),
             ),
           ),

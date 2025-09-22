@@ -2,12 +2,31 @@ import 'package:agribot/Screens/bottom_navigation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:agribot/Screens/Agronomist/agronomist_dashboard.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  void _showToast(BuildContext context, String message,
+      {bool isError = false}) {
+    // If your Flutter version doesn’t support context.mounted, remove this line.
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.only(
+          bottom: MediaQuery.of(context).size.height * 0.7,
+          left: 20,
+          right: 20,
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
 
   // SIGN UP FUNCTION WITH ROLE
   Future<void> signup({
@@ -16,15 +35,12 @@ class AuthService {
     required BuildContext context,
     required String name,
     required String role, // "farmer" or "agronomist"
+    required void Function(Locale) onChangeLanguage, // <-- add this
   }) async {
     try {
-      UserCredential userCredential =
-          await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(email: email, password: password);
 
-      // Store user details and role in Firestore
       await _firestore.collection("users").doc(userCredential.user!.uid).set({
         "uid": userCredential.user!.uid,
         "name": name,
@@ -32,21 +48,13 @@ class AuthService {
         "role": role,
       });
 
-      Fluttertoast.showToast(
-        msg: "Signup Successful!",
-        backgroundColor: Colors.green,
-        textColor: Colors.white,
-      );
+      _showToast(context, "Signup Successful!");
 
-      _redirectBasedOnRole(role, context);
+      _redirectBasedOnRole(role, context, onChangeLanguage); // <-- pass it
     } on FirebaseAuthException catch (e) {
-      _showErrorToast(e.code);
+      _showErrorMessage(context, e.code);
     } catch (e) {
-      Fluttertoast.showToast(
-        msg: "An unexpected error occurred.",
-        backgroundColor: Colors.black,
-        textColor: Colors.white,
-      );
+      _showToast(context, "An unexpected error occurred.", isError: true);
     }
   }
 
@@ -55,94 +63,74 @@ class AuthService {
     required String email,
     required String password,
     required BuildContext context,
+    required void Function(Locale) onChangeLanguage, // <-- add this
   }) async {
     try {
-      // Sign in user
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+          email: email, password: password);
 
-      // Fetch user role from Firestore
       DocumentSnapshot userDoc = await _firestore
           .collection("users")
           .doc(userCredential.user!.uid)
           .get();
 
       if (!userDoc.exists) {
-        Fluttertoast.showToast(
-          msg: "User not found in database.",
-          backgroundColor: Colors.red,
-          textColor: Colors.white,
-        );
+        _showToast(context, "User not found in database.", isError: true);
         return;
       }
 
-      Map<String, dynamic>? userData = userDoc.data() as Map<String, dynamic>?;
-
+      final userData = userDoc.data() as Map<String, dynamic>?;
       if (userData == null || !userData.containsKey('role')) {
-        Fluttertoast.showToast(
-          msg: "User role not found.",
-          backgroundColor: Colors.red,
-          textColor: Colors.white,
-        );
+        _showToast(context, "User role not found.", isError: true);
         return;
       }
 
-      String role = userData['role'];
-      print('$role');
-      _redirectBasedOnRole(role, context);
+      final String role = userData['role'] as String;
+      _redirectBasedOnRole(role, context, onChangeLanguage); // <-- pass it
     } on FirebaseAuthException catch (e) {
-      _showErrorToast(e.code);
+      _showErrorMessage(context, e.code);
     } catch (e) {
-      Fluttertoast.showToast(
-        msg: "An unexpected error occurred: ${e.toString()}",
-        backgroundColor: Colors.black,
-        textColor: Colors.white,
-      );
+      _showToast(context, "An unexpected error occurred: ${e.toString()}",
+          isError: true);
     }
   }
 
   // REDIRECT BASED ON ROLE
-  void _redirectBasedOnRole(String role, BuildContext context) async {
-    print("Redirecting to: $role");
+  void _redirectBasedOnRole(
+    String role,
+    BuildContext context,
+    void Function(Locale) onChangeLanguage, // <-- accept it
+  ) {
+    // Optional tiny delay
+    // await Future.delayed(const Duration(milliseconds: 300));
 
-    await Future.delayed(const Duration(milliseconds: 300)); // Short delay
+    if (!context.mounted) return;
 
-    if (!context.mounted) return; // ✅ Check if context is valid
-
-    Widget targetScreen;
+    late final Widget targetScreen;
     if (role == "farmer") {
-      targetScreen = BottomNavigation();
+      targetScreen =
+          BottomNavigation(onChangeLanguage: onChangeLanguage); // <-- use it
     } else if (role == "agronomist") {
-      targetScreen = AgronomistDashboard();
+      targetScreen =
+          const AgronomistDashboard(); // add language button later if needed
     } else {
-      Fluttertoast.showToast(
-        msg: "Invalid user role.",
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
-      );
+      _showToast(context, "Invalid user role.", isError: true);
       return;
     }
 
-    Navigator.of(context).pushReplacement(
+    // Clear stack so back from Home doesn't go to Login/Register
+    Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(
-        transitionDuration:
-            const Duration(milliseconds: 1000), // Smooth duration
-        pageBuilder: (context, animation, secondaryAnimation) => targetScreen,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
-        },
+        transitionDuration: const Duration(milliseconds: 400),
+        pageBuilder: (_, animation, __) =>
+            FadeTransition(opacity: animation, child: targetScreen),
       ),
+      (route) => false,
     );
   }
 
-  // ERROR HANDLING
-  void _showErrorToast(String code) {
-    String message = '';
+  void _showErrorMessage(BuildContext context, String code) {
+    String message;
     switch (code) {
       case 'invalid-email':
         message = 'The email address is badly formatted.';
@@ -162,11 +150,6 @@ class AuthService {
       default:
         message = 'An unexpected error occurred.';
     }
-
-    Fluttertoast.showToast(
-      msg: message,
-      backgroundColor: Colors.red,
-      textColor: Colors.white,
-    );
+    _showToast(context, message, isError: true);
   }
 }

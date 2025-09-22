@@ -1,219 +1,440 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:agribot/services/api_service.dart';
-import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+
+import 'package:agribot/Services/api_service.dart';
+import 'package:agribot/Screens/disease_risk_form.dart'; // <-- NEW: form screen import
 
 class DiseaseDetectionScreen extends StatefulWidget {
-  const DiseaseDetectionScreen({super.key});
+  final void Function(Locale) onChangeLanguage;
+  const DiseaseDetectionScreen({required this.onChangeLanguage, Key? key})
+      : super(key: key);
 
   @override
-  _DiseaseDetectionScreenState createState() => _DiseaseDetectionScreenState();
+  State<DiseaseDetectionScreen> createState() => _DiseaseDetectionScreenState();
 }
 
 class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
-  File? _image;
-  String? _prediction;
-  String? _qrLink;
-  bool _isProcessing = false;
-  final ApiService _apiService = ApiService();
-  final BarcodeScanner _barcodeScanner =
-      BarcodeScanner(formats: [BarcodeFormat.qrCode]);
+  final _picker = ImagePicker();
+  final _api = ApiService();
 
-  // Pick image from gallery or camera
-  Future<void> _pickImage(ImageSource source) async {
-    final pickedFile = await ImagePicker().pickImage(source: source);
-    if (pickedFile != null) {
+  File? _image;
+  bool _loading = false;
+  String? _predicted;
+  double? _confidence;
+  List<Map<String, dynamic>> _top5 = [];
+  String? _error;
+
+  // ---------------- NEW: disease cards list ----------------
+  final List<String> _diseaseCards = const [
+    "Leaf Blast",
+    "Neck Blast",
+    "Glume Discoloration",
+    "Sheath Rot",
+    "Sheath Blight",
+    "Brown Spot",
+  ];
+  // ---------------------------------------------------------
+
+  Future<void> _pick(ImageSource source) async {
+    try {
+      final picked = await _picker.pickImage(source: source, imageQuality: 90);
+      if (picked == null) return;
       setState(() {
-        _image = File(pickedFile.path);
-        _prediction = null;
-        _qrLink = null;
+        _image = File(picked.path);
+        _predicted = null;
+        _confidence = null;
+        _top5.clear();
+        _error = null;
       });
-      await _processImage();
+    } catch (e) {
+      setState(() => _error = e.toString());
     }
   }
 
-  // Process image to detect QR code or predict disease
-  Future<void> _processImage() async {
+  Future<void> _analyze() async {
     if (_image == null) return;
-
     setState(() {
-      _isProcessing = true;
+      _loading = true;
+      _error = null;
+      _predicted = null;
+      _confidence = null;
+      _top5.clear();
     });
 
     try {
-      final inputImage = InputImage.fromFilePath(_image!.path);
-      final barcodes = await _barcodeScanner.processImage(inputImage);
+      final resp = await _api.predictDisease(_image!);
+      final disease =
+          (resp['predicted_disease'] ?? resp['prediction'])?.toString();
+      final conf = (resp['confidence'] as num?)?.toDouble();
 
-      if (barcodes.isNotEmpty) {
-        final qr = barcodes.first.rawValue ?? '';
-        setState(() {
-          _qrLink = qr;
-          _isProcessing = false;
-        });
-      } else {
-        final result = await _apiService.predictDisease(_image!);
-        setState(() {
-          _prediction =
-              "${result['prediction']} (${result['confidence']}% confidence)";
-          _isProcessing = false;
-        });
-      }
-    } catch (e) {
+      final top = (resp['top5'] as List?)
+              ?.map((e) => {
+                    'label': e['label']?.toString() ?? '',
+                    'confidence': (e['confidence'] as num?)?.toDouble() ?? 0.0
+                  })
+              .toList() ??
+          [];
+
       setState(() {
-        _prediction = "Error: $e";
-        _isProcessing = false;
+        _predicted = disease;
+        _confidence = conf;
+        _top5 = top.cast<Map<String, dynamic>>();
       });
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  // Handle the display of image or prediction result
+  void _showLanguageDialog() {
+    final l10n = AppLocalizations.of(context)!;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: Text(l10n.selectLanguage),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('English'),
+              onTap: () {
+                widget.onChangeLanguage(const Locale('en'));
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: const Text('हिन्दी'),
+              onTap: () {
+                widget.onChangeLanguage(const Locale('hi'));
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              title: const Text('मराठी'),
+              onTap: () {
+                widget.onChangeLanguage(const Locale('mr'));
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final size = MediaQuery.of(context).size;
-    final padding = size.width * 0.05;
+    final pad = size.width * 0.05;
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: Icon(Icons.arrow_back_ios_new),
-        ),
-        title: const Text('Disease Detection'),
+        title: Text(l10n.diseaseDetectionTitle),
+        actions: [
+          IconButton(
+            tooltip: l10n.selectLanguage,
+            icon: const Icon(Icons.language),
+            onPressed: _showLanguageDialog,
+          )
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(
-              vertical: size.height * 0.03, horizontal: padding),
-          child: Center(
-            child: Column(
-              children: [
-                Text(
-                  'Upload Leaf / QR Image',
-                  style: TextStyle(
-                      fontSize: size.width * 0.05,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green[800]),
+              horizontal: pad, vertical: size.height * 0.02),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              Text(
+                l10n.uploadOrCaptureLeaf,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: size.width * 0.05,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.green[800],
                 ),
-                SizedBox(height: size.height * 0.03),
-                _image != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          _image!,
-                          width: size.width * 0.8,
-                          height: size.height * 0.35,
-                          fit: BoxFit.cover,
+              ),
+              SizedBox(height: size.height * 0.02),
+
+              // Image preview
+              Container(
+                height: size.height * 0.32,
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: _image == null
+                    ? Center(
+                        child: Text(
+                          l10n.noImageSelected,
+                          style: TextStyle(
+                              fontSize: size.width * 0.04,
+                              color: Colors.grey[700]),
                         ),
                       )
-                    : Text('No image selected',
-                        style: TextStyle(fontSize: size.width * 0.045)),
-                SizedBox(height: size.height * 0.03),
-                ElevatedButton(
-                  onPressed: () => _showImageSourceDialog(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green[800],
-                    padding: EdgeInsets.symmetric(vertical: size.height * 0.02),
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.file(_image!,
+                            fit: BoxFit.cover, width: double.infinity),
+                      ),
+              ),
+              SizedBox(height: size.height * 0.02),
+
+              // Buttons (camera / gallery)
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pick(ImageSource.camera),
+                      icon: const Icon(Icons.camera_alt),
+                      label: Text(l10n.takePicture),
+                      style: OutlinedButton.styleFrom(
+                        padding:
+                            EdgeInsets.symmetric(vertical: size.height * 0.016),
+                      ),
+                    ),
                   ),
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    child: Text('Select Image',
-                        style: TextStyle(
-                            fontSize: size.width * 0.045, color: Colors.white)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pick(ImageSource.gallery),
+                      icon: const Icon(Icons.photo_library),
+                      label: Text(l10n.chooseFromGallery),
+                      style: OutlinedButton.styleFrom(
+                        padding:
+                            EdgeInsets.symmetric(vertical: size.height * 0.016),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: size.height * 0.02),
+
+              // Analyze button
+              ElevatedButton(
+                onPressed: (_image != null && !_loading) ? _analyze : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[700],
+                  padding: EdgeInsets.symmetric(vertical: size.height * 0.02),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(l10n.analyzeButton,
+                    style: const TextStyle(color: Colors.white)),
+              ),
+
+              if (_loading) ...[
+                SizedBox(height: size.height * 0.02),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Text('Processing...'),
+                  ],
+                ),
+              ],
+
+              // Error
+              if (_error != null && !_loading) ...[
+                SizedBox(height: size.height * 0.02),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Text(
+                    l10n.predictionFailed(_error!),
+                    style: TextStyle(color: Colors.red[800]),
                   ),
                 ),
-                SizedBox(height: size.height * 0.02),
-                if (_isProcessing) CircularProgressIndicator(),
+              ],
 
-                // Display QR Code or Prediction Result
-                if (_qrLink != null)
-                  Padding(
-                    padding: EdgeInsets.all(size.width * 0.04),
-                    child: Column(
-                      children: [
-                        Text('QR Code Detected:',
-                            style: TextStyle(
-                                fontSize: size.width * 0.045,
-                                fontWeight: FontWeight.bold)),
-                        SizedBox(height: size.height * 0.01),
-                        GestureDetector(
-                          onTap: () async {
-                            String url = _qrLink!;
-                            if (!url.startsWith('http')) {
-                              url = "https://$url"; // add https if missing
-                            }
-                            final Uri uri = Uri.parse(url);
-                            if (await canLaunchUrl(uri)) {
-                              await launchUrl(uri,
-                                  mode: LaunchMode.externalApplication);
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content: Text('Could not launch $url')));
-                            }
-                          },
-                          child: Text(
-                            _qrLink!,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                                color: Colors.blue,
-                                decoration: TextDecoration.underline,
-                                fontSize: size.width * 0.04),
+              // Result card
+              if (_predicted != null && !_loading) ...[
+                SizedBox(height: size.height * 0.02),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.green.shade200),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.green.withOpacity(0.08),
+                        offset: const Offset(0, 4),
+                        blurRadius: 12,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Result',
+                          style: TextStyle(
+                            fontSize: size.width * 0.05,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.green[900],
+                          )),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _kv(l10n.predictedDisease, _predicted!),
+                          ),
+                          if (_confidence != null)
+                            Expanded(
+                              child: _kv(
+                                l10n.confidenceLabel,
+                                '${_confidence!.toStringAsFixed(2)}%',
+                              ),
+                            ),
+                        ],
+                      ),
+                      if (_top5.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          l10n.topPredictions,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green[800],
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        ..._top5.map((e) {
+                          final label = e['label']?.toString() ?? '';
+                          final conf =
+                              (e['confidence'] as num?)?.toDouble() ?? 0.0;
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                Expanded(child: Text(label)),
+                                SizedBox(
+                                  width: 120,
+                                  child: LinearProgressIndicator(
+                                    value: (conf / 100.0).clamp(0.0, 1.0),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text('${conf.toStringAsFixed(1)}%'),
+                              ],
+                            ),
+                          );
+                        }).toList(),
                       ],
-                    ),
+                    ],
                   ),
-                if (_prediction != null)
-                  Padding(
-                    padding: EdgeInsets.all(size.width * 0.04),
-                    child: Text(
-                      'Prediction: $_prediction',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: size.width * 0.045,
-                          color: Colors.green[700]),
-                    ),
-                  ),
+                ),
               ],
-            ),
+
+              // ---------------- NEW: Disease Risk Estimators section ----------------
+              SizedBox(height: size.height * 0.03),
+              Text(
+                'Disease Risk Estimators', // add to ARB later if you like
+                style: TextStyle(
+                  fontSize: size.width * 0.05,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.green[900],
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              GridView.builder(
+                itemCount: _diseaseCards.length,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 1.15,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+                itemBuilder: (context, i) {
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DiseaseRiskForm(
+                            diseaseName: _diseaseCards[i],
+                            diseaseIndex:
+                                i, // maps directly to backend “disease”
+                          ),
+                        ),
+                      );
+                    },
+                    child: Ink(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.green.shade200),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.green.withOpacity(0.06),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.local_hospital,
+                                color: Colors.green[700], size: 28),
+                            const SizedBox(height: 12),
+                            Text(
+                              _diseaseCards[i],
+                              textAlign: TextAlign.center,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Tap to enter parameters',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              // --------------------------------------------------------------------
+            ],
           ),
         ),
       ),
     );
   }
 
-  // Show bottom sheet for selecting image source (camera or gallery)
-  void _showImageSourceDialog(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              ListTile(
-                leading: Icon(Icons.camera_alt),
-                title: Text('Take a picture'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.camera);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.photo_library),
-                title: Text('Choose from gallery'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.gallery);
-                },
-              ),
-            ],
-          ),
-        );
-      },
+  Widget _kv(String k, String v) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(k, style: const TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        Text(v),
+      ],
     );
   }
 }

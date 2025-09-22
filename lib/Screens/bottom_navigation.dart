@@ -1,36 +1,41 @@
 import 'package:agribot/Screens/analytics_screen.dart';
-import 'package:agribot/Screens/controls_screen.dart';
 import 'package:agribot/Screens/disease_detection_screen.dart';
 import 'package:agribot/Screens/home_screen.dart';
 import 'package:agribot/Screens/setting_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class BottomNavigation extends StatefulWidget {
-  const BottomNavigation({super.key});
+  final void Function(Locale) onChangeLanguage; // ← add this
+  const BottomNavigation({required this.onChangeLanguage, super.key});
 
   @override
   State<BottomNavigation> createState() => _BottomNavigationState();
 }
 
 class _BottomNavigationState extends State<BottomNavigation> {
-  int selectedIndex = 2;
-  PageController pageController = PageController();
+  int selectedIndex = 0;
+  final PageController pageController = PageController();
 
   late double iconSize;
   late double fontSize;
 
-  List<Widget> pages = [
-    DiseaseDetectionScreen(),
-    AnalyticsScreen(),
-    HomeScreen(),
-    ControlsScreen(),
-    SettingScreen(),
-  ];
+  // Build pages after we have access to `widget` (can't access `widget` at field init time).
+  late final List<Widget> pages;
+
+  @override
+  void initState() {
+    super.initState();
+    pages = [
+      HomeScreen(onChangeLanguage: widget.onChangeLanguage), // ← pass it
+      DiseaseDetectionScreen(onChangeLanguage: widget.onChangeLanguage),
+      const AnalyticsScreen(),
+      const SettingScreen(), // add a language button here later if you want
+    ];
+  }
 
   void onItemTapped(int index) {
-    setState(() {
-      selectedIndex = index;
-    });
+    setState(() => selectedIndex = index);
     pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
@@ -40,6 +45,7 @@ class _BottomNavigationState extends State<BottomNavigation> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final size = MediaQuery.of(context).size;
     iconSize = size.width * 0.065;
     fontSize = size.width * 0.030;
@@ -47,11 +53,7 @@ class _BottomNavigationState extends State<BottomNavigation> {
     return Scaffold(
       body: PageView(
         controller: pageController,
-        onPageChanged: (index) {
-          setState(() {
-            selectedIndex = index;
-          });
-        },
+        onPageChanged: (index) => setState(() => selectedIndex = index),
         children: pages,
         physics: const BouncingScrollPhysics(),
       ),
@@ -71,39 +73,29 @@ class _BottomNavigationState extends State<BottomNavigation> {
           type: BottomNavigationBarType.fixed,
           items: <BottomNavigationBarItem>[
             BottomNavigationBarItem(
-              icon: ImageIcon(
-                AssetImage('assets/images/upload_svg.png'),
-                size: iconSize,
-              ),
-              label: 'Upload',
+              icon: ImageIcon(AssetImage('assets/images/Home.png'),
+                  size: iconSize),
+              label: l10n.navHome, // ← localized
             ),
             BottomNavigationBarItem(
-              icon: ImageIcon(
-                AssetImage('assets/images/Chart.png'),
-                size: iconSize,
-              ),
-              label: 'Analytics',
+              icon: ImageIcon(AssetImage('assets/images/upload_svg.png'),
+                  size: iconSize),
+              label: l10n.navUpload,
             ),
             BottomNavigationBarItem(
-              icon: ImageIcon(
-                AssetImage('assets/images/Home.png'),
-                size: iconSize,
-              ),
-              label: 'Home',
+              icon: ImageIcon(AssetImage('assets/images/Chart.png'),
+                  size: iconSize),
+              label: l10n.navAnalytics,
             ),
             BottomNavigationBarItem(
-              icon: ImageIcon(
-                AssetImage('assets/images/Filter.png'),
-                size: iconSize,
-              ),
-              label: 'Controls',
+              icon: ImageIcon(AssetImage('assets/images/Filter.png'),
+                  size: iconSize),
+              label: l10n.navControls,
             ),
             BottomNavigationBarItem(
-              icon: ImageIcon(
-                AssetImage('assets/images/Setting_line.png'),
-                size: iconSize,
-              ),
-              label: 'Settings',
+              icon: ImageIcon(AssetImage('assets/images/Setting_line.png'),
+                  size: iconSize),
+              label: l10n.navSettings,
             ),
           ],
           currentIndex: selectedIndex,

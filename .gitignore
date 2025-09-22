@@ -35,6 +35,13 @@ migrate_working_dir/
 firebase.json
 /lib/firebase_options.dart
 /lib/services/weather_services.dart
+/backend/models
+/backend/venv
+/backend/uploads
+/backend/static
+/lib/Models
+
+
 
 
 # Symbolication related

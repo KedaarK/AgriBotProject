@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:sensors_plus/sensors_plus.dart'; // Import the sensors_plus package
+// import 'package:agribot/Screens/disease_detection_screen.dart'; // Import DiseaseDetectionScreen
 
 class SettingScreen extends StatefulWidget {
   const SettingScreen({super.key});
@@ -11,8 +14,55 @@ class _SettingScreenState extends State<SettingScreen> {
   bool pushNotifications = true;
   bool darkMode = false;
 
+  late StreamSubscription<AccelerometerEvent> _accelerometerStreamSubscription;
+  bool _isShaking = false; // To track shake state
+
+  @override
+  void initState() {
+    super.initState();
+    // Start listening to accelerometer events
+    _startShakeDetection();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _accelerometerStreamSubscription.cancel(); // Stop listening when disposed
+  }
+
+  // Start listening for accelerometer events
+  void _startShakeDetection() {
+    _accelerometerStreamSubscription =
+        accelerometerEvents.listen((AccelerometerEvent event) {
+      double totalMovement =
+          event.x * event.x + event.y * event.y + event.z * event.z;
+
+      // Set a threshold for shake detection (adjust this as needed)
+      if (totalMovement > 15.0 && !_isShaking) {
+        // Shake detected
+        _isShaking = true;
+        _onShakeDetected();
+      } else if (totalMovement < 5.0) {
+        // Reset if the movement is not significant
+        _isShaking = false;
+      }
+    });
+  }
+
+  // Handle shake detected
+  void _onShakeDetected() {
+    // Navigate to the DiseaseDetectionScreen on shake
+    print("Shake detected! Navigating to Disease Detection Screen.");
+    // Navigator.push(
+    //   context,
+    //   MaterialPageRoute(
+    //       // builder: (context) => DiseaseDetectionScreen(),
+    //       ), // Your DiseaseDetectionScreen
+    // );
+  }
+
   void _toggleTheme() {
-    // Logic to toggle dark mode (You can integrate Theme switching here)
+    // Logic to toggle dark mode (You can integrate theme switching here)
   }
 
   @override

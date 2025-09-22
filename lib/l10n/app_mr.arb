@@ -1,0 +1,101 @@
+{
+  "@@locale": "mr",
+
+  "taglineCultivate": "घडवा",
+  "@taglineCultivate": { "description": "Hero line part 1" },
+
+  "taglineYourFuture": "तुमचे भविष्य",
+  "@taglineYourFuture": { "description": "Hero line part 2" },
+
+  "taglineWith": "सोबत",
+  "@taglineWith": { "description": "Hero line part 3" },
+
+  "taglineAgribot": "AgriBot",
+  "@taglineAgribot": { "description": "Hero line part 4 (brand)" },
+
+  "tagline_multiline": "AgriBot सोबत\nतुमचे भविष्य\nघडवा",
+
+  "signIn": "साइन इन",
+  "@signIn": { "description": "Primary CTA button" },
+
+  "createAccount": "खाते तयार करा",
+  "@createAccount": { "description": "Link to registration" },
+
+  "selectLanguage": "भाषा निवडा",
+
+  "welcomeBack": "पुन्हा स्वागत आहे",
+  "loginToYourAccount": "तुमच्या खात्यात लॉगिन करा",
+
+  "emailLabel": "ईमेल",
+  "passwordLabel": "पासवर्ड",
+
+  "rememberMe": "मला लक्षात ठेवा",
+  "forgotPassword": "पासवर्ड विसरलात?",
+
+  "login": "लॉगिन",
+  "dontHaveAccount": "खाते नाही?",
+  "signUp": "साइन अप",
+
+  "enterAllDetails": "कृपया सर्व तपशील भरा",
+  "enterValidEmail": "कृपया वैध ईमेल टाका",
+
+  "loginFailed": "लॉगिन अयशस्वी: {error}",
+  "@loginFailed": {
+    "description": "लॉगिन अयशस्वी झाल्यावर दाखवले जाणारे संदेश",
+    "placeholders": {
+      "error": { "type": "String", "example": "चुकीचा पासवर्ड" }
+    }
+  },
+
+  "registerTitle": "नोंदणी",
+  "registerSubtitle": "स्वतःचे खाते तयार करा",
+  "nameLabel": "नाव",
+  "sendOtp": "ओटीपी पाठवा",
+  "enterOtpLabel": "ओटीपी टाका",
+  "verifyOtp": "सत्यापित करा",
+  "reEnterPasswordLabel": "पासवर्ड पुन्हा टाका",
+  "selectRole": "भूमिका निवडा",
+  "roleFarmer": "शेतकरी",
+  "roleAgronomist": "कृषिशास्त्रज्ञ",
+  "registerCta": "नोंदणी करा",
+  "alreadyHaveAccount": "आधीच खाते आहे?",
+  "otpVerified": "ओटीपी सत्यापित! आता तुम्ही नोंदणी करू शकता.",
+  "verifyOtpFirst": "कृपया नोंदणीपूर्वी ओटीपी सत्यापित करा.",
+  "passwordsDoNotMatch": "पासवर्ड जुळत नाहीत!",
+  "fillAllFields": "कृपया सर्व फील्ड भरा",
+  "genericError": "काहीतरी चूक झाली",
+  "homeTitle": "मुख्यपृष्ठ",
+  "productsAndServices": "उत्पादने व सेवा",
+  "weatherLabel": "हवामान",
+  "nowLabel": "आत्ता",
+  "errorLoadingWeather": "हवामान डेटा लोड करताना त्रुटी",
+
+  "serviceCropRecommendationTitle": "पिक शिफारस",
+  "serviceCropRecommendationSubtitle": "परिस्थितींवर आधारित पिक प्रकाराची शिफारस.",
+  "serviceFertilizerPredictionTitle": "खत शिफारस",
+  "serviceFertilizerPredictionSubtitle": "मातीच्या आधारे तुमच्या पिकासाठी सर्वोत्तम खत शोधा.",
+  "serviceIrrigationAdviceTitle": "सिंचन सल्ला",
+  "serviceIrrigationAdviceSubtitle": "पाणी व्यवस्थापनासाठी सूचना.",
+  "navHome": "मुख्यपृष्ठ",
+  "navUpload": "अपलोड",
+  "navAnalytics": "विश्लेषण",
+  "navControls": "नियंत्रणे",
+  "navSettings": "सेटिंग्ज",
+   "diseaseDetectionTitle": "वनस्पती रोग ओळख",
+  "uploadOrCaptureLeaf": "पानाची प्रतिमा अपलोड करा किंवा कॅप्चर करा",
+  "noImageSelected": "कोणतीही प्रतिमा निवडलेली नाही",
+  "takePicture": "छायाचित्र घ्या",
+  "chooseFromGallery": "गॅलरीतून निवडा",
+  "analyzeButton": "विश्लेषण करा",
+  "processing": "विश्लेषण सुरू…",
+  "resultHeader": "निकाल",
+  "predictedDisease": "भाकीत केलेला रोग",
+  "confidenceLabel": "निश्चितता",
+  "topPredictions": "शीर्ष अंदाज",
+  "predictionFailed": "भाकीत अयशस्वी: {error}",
+  "@predictionFailed": {
+    "placeholders": {
+      "error": { "type": "String", "example": "जाळ्याशी संबंधित त्रुटी" }
+    }
+  }
+}
