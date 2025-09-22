@@ -405,6 +405,9 @@ from PIL import Image
 from email.message import EmailMessage
 import smtplib
 import joblib
+from flask import request, jsonify
+from llm import disease_prevention_prompt, market_quote_prompt, run_json_prompt
+import requests
 
 # -----------------------
 # Flask
@@ -449,6 +452,74 @@ for idx, fname in _RISK_MODEL_FILES.items():
 # =========================
 # Risk scoring endpoint
 # =========================
+
+@app.route("/advice/disease", methods=["POST"])
+def llm_disease_advice():
+    """
+    Body JSON:
+    {
+      "crop": "Tomato",
+      "disease": "Tomato late blight",
+      "locale": "en"   // optional
+    }
+    """
+    try:
+        data = request.get_json(force=True) or {}
+        crop = data.get("crop")
+        disease = data.get("disease")
+        locale = data.get("locale", "en")
+
+        if not crop or not disease:
+            return jsonify({"error": "crop and disease are required"}), 400
+
+        prompt = disease_prevention_prompt(disease_name=disease, crop_name=crop, locale=locale)
+        result = run_json_prompt(prompt)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/market/quote", methods=["POST"])
+def llm_market_quote():
+    """
+    Body JSON:
+    {
+      "crop": "Tomato",
+      "market_name": "APMC",
+      "market_city": "Pune",
+      "unit": "kg",
+      "quantity": 500,
+      "transport_km": 120,
+      "transport_rate_per_km": 15,
+      "locale": "en",
+
+      // CRITICAL: you must pass a REAL price you fetched from a trusted API:
+      "unit_price": 19.75
+    }
+    """
+    try:
+        data = request.get_json(force=True) or {}
+        required = ["crop","market_name","market_city","unit","quantity","transport_km","transport_rate_per_km","unit_price"]
+        missing = [k for k in required if k not in data]
+        if missing:
+            return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+        prompt = market_quote_prompt(
+            crop=data["crop"],
+            market_name=data["market_name"],
+            market_city=data["market_city"],
+            unit_price=float(data["unit_price"]),
+            quantity=float(data["quantity"]),
+            unit=data["unit"],
+            transport_km=float(data["transport_km"]),
+            transport_rate_per_km=float(data["transport_rate_per_km"]),
+            locale=data.get("locale", "en"),
+        )
+        result = run_json_prompt(prompt)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/risk/add', methods=['POST'])
 def risk_add():
     """
