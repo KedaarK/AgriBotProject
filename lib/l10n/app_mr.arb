@@ -97,5 +97,12 @@
     "placeholders": {
       "error": { "type": "String", "example": "जाळ्याशी संबंधित त्रुटी" }
     }
-  }
+  },
+  "userNotLoggedIn": "वापरकर्ता लॉगिन केलेला नाही.",
+  "predictionHistoryTitle": "भाकीत इतिहास",
+  "noPredictionsFound": "या वापरकर्त्याकरिता कोणतीही भाकीत नाही.",
+  "errorMessage": "त्रुटी: {error}",
+  "confidenceLabel": "निश्चितता",
+  "viewPreviousPredictions": "View Previous Predictions",
+  "dateLabel": "तारीख"
 }

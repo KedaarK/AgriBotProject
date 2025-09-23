@@ -406,8 +406,9 @@ from email.message import EmailMessage
 import smtplib
 import joblib
 from flask import request, jsonify
-from llm import disease_prevention_prompt, market_quote_prompt, run_json_prompt
-import requests
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
+import llm
 
 # -----------------------
 # Flask
@@ -452,74 +453,85 @@ for idx, fname in _RISK_MODEL_FILES.items():
 # =========================
 # Risk scoring endpoint
 # =========================
-
-@app.route("/advice/disease", methods=["POST"])
-def llm_disease_advice():
-    """
-    Body JSON:
-    {
-      "crop": "Tomato",
-      "disease": "Tomato late blight",
-      "locale": "en"   // optional
-    }
-    """
+@app.route("/api/llm/prevention", methods=["POST"])
+def llm_prevention():
     try:
         data = request.get_json(force=True) or {}
-        crop = data.get("crop")
-        disease = data.get("disease")
-        locale = data.get("locale", "en")
-
+        crop = (data.get("crop") or "").strip()
+        disease = (data.get("disease") or "").strip()
+        locale = (data.get("locale") or "en").strip()
         if not crop or not disease:
-            return jsonify({"error": "crop and disease are required"}), 400
+            return jsonify({"error": "Missing 'crop' or 'disease'"}), 400
 
-        prompt = disease_prevention_prompt(disease_name=disease, crop_name=crop, locale=locale)
-        result = run_json_prompt(prompt)
-        return jsonify(result), 200
+        prompt = llm.disease_prevention_prompt(disease_name=disease, crop_name=crop, locale=locale)
+        out = llm.run_json_prompt(prompt)
+        return jsonify(out), 200
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        # Fallback example (matches your Flutter renderer)
+        fallback = {
+            "summary": "Tomato Late blight is a highly destructive disease caused by Phytophthora infestans, thriving in cool, wet conditions. Preventive measures are crucial to avoid rapid spread and significant crop loss.",
+            "cultural_practices": [
+                "Ensure adequate plant spacing for good air circulation.",
+                "Water at the base using drip/soaker hoses; avoid overhead watering.",
+                "Irrigate in the morning so foliage dries quickly.",
+                "Stake or cage plants to keep foliage off the soil.",
+                "Rotate away from tomatoes/potatoes for 3–4 years.",
+                "Avoid planting tomatoes near potatoes."
+            ],
+            "sanitation_practices": [
+                "Remove and destroy infected debris—do not compost.",
+                "Control volunteer tomato and potato plants.",
+                "Clean tools after working in infected areas."
+            ],
+            "resistant_varieties": ["Defiant PHR","Mountain Magic","Plum Regal","Iron Lady"],
+            "monitoring": [
+                "Scout during cool, wet weather for early symptoms.",
+                "Use local forecasts to watch for prolonged high humidity.",
+                "Look for water-soaked lesions; check undersides for white growth."
+            ],
+            "disclaimer": "Always check local agricultural extension guidelines for your region."
+        }
+        # 429 for quota/rate; 500 otherwise
+        code = 429 if "quota" in str(e).lower() or "429" in str(e) else 500
+        return jsonify({"_fallback": True, **fallback, "error": str(e)}), code
 
 
-@app.route("/market/quote", methods=["POST"])
-def llm_market_quote():
-    """
-    Body JSON:
-    {
-      "crop": "Tomato",
-      "market_name": "APMC",
-      "market_city": "Pune",
-      "unit": "kg",
-      "quantity": 500,
-      "transport_km": 120,
-      "transport_rate_per_km": 15,
-      "locale": "en",
-
-      // CRITICAL: you must pass a REAL price you fetched from a trusted API:
-      "unit_price": 19.75
-    }
-    """
+@app.route("/api/llm/fertilizer", methods=["POST"])
+def llm_fertilizer():
     try:
         data = request.get_json(force=True) or {}
-        required = ["crop","market_name","market_city","unit","quantity","transport_km","transport_rate_per_km","unit_price"]
-        missing = [k for k in required if k not in data]
-        if missing:
-            return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+        crop = (data.get("crop") or "").strip()
+        disease = (data.get("disease") or "").strip()
+        locale = (data.get("locale") or "en").strip()
+        if not crop or not disease:
+            return jsonify({"error": "Missing 'crop' or 'disease'"}), 400
 
-        prompt = market_quote_prompt(
-            crop=data["crop"],
-            market_name=data["market_name"],
-            market_city=data["market_city"],
-            unit_price=float(data["unit_price"]),
-            quantity=float(data["quantity"]),
-            unit=data["unit"],
-            transport_km=float(data["transport_km"]),
-            transport_rate_per_km=float(data["transport_rate_per_km"]),
-            locale=data.get("locale", "en"),
-        )
-        result = run_json_prompt(prompt)
-        return jsonify(result), 200
+        prompt = llm.fertilizer_advice_prompt(crop_name=crop, disease_name=disease, locale=locale)
+        out = llm.run_json_prompt(prompt)
+        return jsonify(out), 200
+
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        fallback = {
+            "recommendations": [
+                "Apply balanced NPK (e.g., 60–40–40 kg/ha) adjusted by soil test.",
+                "Split nitrogen into basal + 1–2 top dressings to reduce losses.",
+                "Use well-decomposed compost/FYM (5–10 t/ha) to improve soil health.",
+                "Ensure adequate potassium to strengthen disease tolerance.",
+                "Maintain pH near neutral; apply lime/gypsum as per soil test."
+            ],
+            "schedule": [
+                "Basal: 100% P & K + 25–40% N at transplanting/sowing.",
+                "Top dress 1: 30–40% N at early vegetative/first bloom.",
+                "Top dress 2: remaining N at early fruit set.",
+                "Irrigate after each application; avoid leaf contact."
+            ],
+            "notes": "Rates are indicative—always adjust to local recommendations and soil test results. Handle fertilizers safely."
+        }
+        code = 429 if "quota" in str(e).lower() or "429" in str(e) else 500
+        return jsonify({"_fallback": True, **fallback, "error": str(e)}), code
 
+    
 @app.route('/risk/add', methods=['POST'])
 def risk_add():
     """

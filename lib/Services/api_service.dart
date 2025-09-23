@@ -5,17 +5,57 @@ import 'package:http/http.dart' as http;
 class ApiService {
   // Point this at your Flask base (note the /api suffix based on your routes)
   // For Android emulator -> host machine, you can use: http://10.0.2.2:5000/api
-
+  // final String baseUrl = 'http://10.210.119.19:5000/api';
+  // final String rootUrl = 'http://10.210.119.119:5000';
+  
+  
   final String baseUrl = 'http://10.0.2.2:5000/api';
-  // final String baseUrl = 'http://192.168.211.119:5000/api';
+  final String rootUrl = 'http://10.0.2.2:5000';
+  // in Services/api_service.dart
 
-  final String diseaseEstimatorBase = 'http://10.0.2.2:5000';
+  Future<Map<String, dynamic>> getPreventionAdvice({
+    required String crop,
+    required String disease,
+    String locale = 'en',
+  }) async {
+    final uri = Uri.parse('$baseUrl/llm/prevention');
+    final resp = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({"crop": crop, "disease": disease, "locale": locale}),
+    );
+    if (resp.statusCode == 200) {
+      return json.decode(resp.body) as Map<String, dynamic>;
+    } else {
+      throw Exception(
+          'Prevention LLM failed (${resp.statusCode}): ${resp.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> getFertilizerAdvice({
+    required String crop,
+    required String disease,
+    String locale = 'en',
+  }) async {
+    final uri = Uri.parse('$baseUrl/llm/fertilizer');
+    final resp = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({"crop": crop, "disease": disease, "locale": locale}),
+    );
+    if (resp.statusCode == 200) {
+      return json.decode(resp.body) as Map<String, dynamic>;
+    } else {
+      throw Exception(
+          'Fertilizer LLM failed (${resp.statusCode}): ${resp.body}');
+    }
+  }
 
   Future<double> estimateDiseaseRisk({
     required int diseaseIndex,
     required List<double> values, // must be 13 numbers in the expected order
   }) async {
-    final uri = Uri.parse('$diseaseEstimatorBase/risk/add');
+    final uri = Uri.parse('$rootUrl/risk/add');
     final resp = await http.post(
       uri,
       headers: {'Content-Type': 'application/json'},

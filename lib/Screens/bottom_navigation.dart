@@ -1,4 +1,5 @@
 import 'package:agribot/Screens/analytics_screen.dart';
+import 'package:agribot/Screens/analytics_screen2.dart';
 import 'package:agribot/Screens/disease_detection_screen.dart';
 import 'package:agribot/Screens/home_screen.dart';
 import 'package:agribot/Screens/setting_screen.dart';
@@ -7,7 +8,9 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class BottomNavigation extends StatefulWidget {
   final void Function(Locale) onChangeLanguage; // ← add this
-  const BottomNavigation({required this.onChangeLanguage, super.key});
+  final String userEmail;
+  const BottomNavigation(
+      {required this.userEmail, required this.onChangeLanguage, super.key});
 
   @override
   State<BottomNavigation> createState() => _BottomNavigationState();
@@ -28,8 +31,10 @@ class _BottomNavigationState extends State<BottomNavigation> {
     super.initState();
     pages = [
       HomeScreen(onChangeLanguage: widget.onChangeLanguage), // ← pass it
-      DiseaseDetectionScreen(onChangeLanguage: widget.onChangeLanguage),
-      const AnalyticsScreen(),
+      DiseaseDetectionScreen(
+          userEmail: widget.userEmail,
+          onChangeLanguage: widget.onChangeLanguage),
+      const AnalyticsScreen2(),
       const SettingScreen(), // add a language button here later if you want
     ];
   }

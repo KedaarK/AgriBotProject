@@ -1,14 +1,18 @@
 import 'dart:io';
+import 'package:agribot/Screens/prediction_history_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:agribot/Services/api_service.dart';
-import 'package:agribot/Screens/disease_risk_form.dart'; // <-- NEW: form screen import
+import 'package:agribot/Screens/disease_risk_form.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class DiseaseDetectionScreen extends StatefulWidget {
   final void Function(Locale) onChangeLanguage;
-  const DiseaseDetectionScreen({required this.onChangeLanguage, Key? key})
+  final String userEmail;
+  const DiseaseDetectionScreen(
+      {required this.userEmail, required this.onChangeLanguage, Key? key})
       : super(key: key);
 
   @override
@@ -26,7 +30,16 @@ class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
   List<Map<String, dynamic>> _top5 = [];
   String? _error;
 
-  // ---------------- NEW: disease cards list ----------------
+  // LLM state
+  bool _adviceLoading = false;
+  String? _adviceError;
+  Map<String, dynamic>? _advice;
+
+  bool _fertLoading = false;
+  String? _fertError;
+  Map<String, dynamic>? _fertAdvice;
+
+  // Disease risk cards
   final List<String> _diseaseCards = const [
     "Leaf Blast",
     "Neck Blast",
@@ -35,7 +48,6 @@ class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
     "Sheath Blight",
     "Brown Spot",
   ];
-  // ---------------------------------------------------------
 
   Future<void> _pick(ImageSource source) async {
     try {
@@ -47,6 +59,10 @@ class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
         _confidence = null;
         _top5.clear();
         _error = null;
+        _advice = null;
+        _adviceError = null;
+        _fertAdvice = null;
+        _fertError = null;
       });
     } catch (e) {
       setState(() => _error = e.toString());
@@ -68,7 +84,6 @@ class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
       final disease =
           (resp['predicted_disease'] ?? resp['prediction'])?.toString();
       final conf = (resp['confidence'] as num?)?.toDouble();
-
       final top = (resp['top5'] as List?)
               ?.map((e) => {
                     'label': e['label']?.toString() ?? '',
@@ -82,10 +97,94 @@ class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
         _confidence = conf;
         _top5 = top.cast<Map<String, dynamic>>();
       });
+
+      // Save prediction to Firebase Firestore
+      if (_predicted != null) {
+        await _savePredictionToHistory(_predicted!, _confidence, _top5);
+      }
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // --- LLM helpers ---
+
+  String _extractCropFromPrediction(String full) {
+    // "Tomato late blight" -> "Tomato"
+    // "Potato early blight" -> "Potato"
+    if (full.trim().isEmpty) return full;
+    return full.split(' ').first;
+  }
+
+  Future<void> _fetchPreventiveAdvice() async {
+    if (_predicted == null) return;
+    final crop = _extractCropFromPrediction(_predicted!);
+
+    setState(() {
+      _adviceLoading = true;
+      _adviceError = null;
+      _advice = null;
+    });
+
+    try {
+      final advice = await _api.getPreventionAdvice(
+        crop: crop,
+        disease: _predicted!,
+        locale: Localizations.localeOf(context).languageCode,
+      );
+      if (!mounted) return;
+      setState(() => _advice = advice);
+      _showBottomSheet(
+        title: 'Preventive measures',
+        child: _AdviceView(advice: advice),
+      );
+    } catch (e) {
+      setState(() => _adviceError = e.toString());
+      _showBottomSheet(
+        title: 'Preventive measures',
+        isDense: true,
+        child: Text('Failed to fetch advice:\n$e',
+            style: TextStyle(color: Colors.red.shade700)),
+      );
+    } finally {
+      if (mounted) setState(() => _adviceLoading = false);
+    }
+  }
+
+  Future<void> _fetchFertilizerAdvice() async {
+    if (_predicted == null) return;
+    final crop = _extractCropFromPrediction(_predicted!);
+
+    setState(() {
+      _fertLoading = true;
+      _fertError = null;
+      _fertAdvice = null;
+    });
+
+    try {
+      final fert = await _api.getFertilizerAdvice(
+        crop: crop,
+        disease: _predicted!,
+        locale: Localizations.localeOf(context).languageCode,
+      );
+      if (!mounted) return;
+      setState(() => _fertAdvice = fert);
+      _showBottomSheet(
+        title: 'Fertilizer guidance',
+        child: _FertilizerView(data: fert),
+      );
+    } catch (e) {
+      setState(() => _fertError = e.toString());
+      _showBottomSheet(
+        title: 'Fertilizer guidance',
+        isDense: true,
+        child: Text('Failed to fetch fertilizer advice:\n$e',
+            style: TextStyle(color: Colors.red.shade700)),
+      );
+    } finally {
+      if (mounted) setState(() => _fertLoading = false);
     }
   }
 
@@ -124,6 +223,96 @@ class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
         ),
       ),
     );
+  }
+
+  void _showBottomSheet({
+    required String title,
+    required Widget child,
+    bool isDense = false,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: isDense ? 0.4 : 0.7,
+        minChildSize: 0.3,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, controller) => Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: controller,
+                  child: child,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Save prediction to Firestore
+  Future<void> _savePredictionToHistory(String predictedDisease,
+      double? confidence, List<Map<String, dynamic>> top5) async {
+    try {
+      // 1. Get the current user from Firebase Auth
+      final user = FirebaseAuth.instance.currentUser;
+
+      // 2. Check if the user is actually logged in
+      if (user == null || user.email == null) {
+        print("Error: User is not logged in or email is not available.");
+        return; // Exit the function if no user is signed in
+      }
+
+      // 3. Use the logged-in user's email
+      String userEmail = user.email!;
+
+      // Reference to the user's document in Firestore using the dynamic email
+      DocumentReference userDoc =
+          FirebaseFirestore.instance.collection('users').doc(userEmail);
+
+      // Create the new prediction entry
+      final newPrediction = {
+        'disease': predictedDisease,
+        'confidence': confidence ?? 0.0,
+        'timestamp': Timestamp.now(),
+        'top5': top5,
+      };
+
+      // Add prediction history to the user's document
+      // Using FieldValue.arrayUnion adds the new map to the array
+      await userDoc.set({
+        'email': userEmail, // Good practice to store the email in the doc too
+        'diseasePredictions': FieldValue.arrayUnion([newPrediction])
+      }, SetOptions(merge: true));
+
+      print("Prediction saved successfully for user: $userEmail");
+    } catch (e) {
+      print("Error saving prediction: $e");
+    }
   }
 
   @override
@@ -263,7 +452,7 @@ class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
                 ),
               ],
 
-              // Result card
+              // Result card + LLM CTAs
               if (_predicted != null && !_loading) ...[
                 SizedBox(height: size.height * 0.02),
                 Container(
@@ -293,8 +482,7 @@ class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: _kv(l10n.predictedDisease, _predicted!),
-                          ),
+                              child: _kv(l10n.predictedDisease, _predicted!)),
                           if (_confidence != null)
                             Expanded(
                               child: _kv(
@@ -336,15 +524,108 @@ class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
                           );
                         }).toList(),
                       ],
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: (_adviceLoading)
+                                  ? null
+                                  : _fetchPreventiveAdvice,
+                              icon: _adviceLoading
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Icon(
+                                      Icons.volunteer_activism_rounded),
+                              label: const Text('Preventive measures'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.green[700],
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: (_fertLoading)
+                                  ? null
+                                  : _fetchFertilizerAdvice,
+                              icon: _fertLoading
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.spa_outlined),
+                              label: const Text('Fertilizer advice'),
+                              style: OutlinedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
               ],
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: size.width *
+                        0.9, // Button takes up 80% of the screen width
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PredictionHistoryScreen(
+                              userEmail: widget.userEmail,
+                            ),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors
+                            .green[700], // Background color for the button
+                        padding: EdgeInsets.symmetric(
+                            vertical: size.height *
+                                0.02), // Vertical padding based on screen height
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                              12), // Rounded corners for the button
+                        ),
+                      ),
+                      child: Text(
+                        l10n.viewPreviousPredictions, // Use localized string here
+                        style: const TextStyle(
+                            color: Colors.white), // White text color
+                      ),
+                    ),
+                  ),
+                ],
+              ),
 
-              // ---------------- NEW: Disease Risk Estimators section ----------------
+              // Disease Risk Estimators
               SizedBox(height: size.height * 0.03),
               Text(
-                'Disease Risk Estimators', // add to ARB later if you like
+                'Disease Risk Estimators',
                 style: TextStyle(
                   fontSize: size.width * 0.05,
                   fontWeight: FontWeight.w700,
@@ -352,7 +633,6 @@ class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-
               GridView.builder(
                 itemCount: _diseaseCards.length,
                 shrinkWrap: true,
@@ -372,8 +652,7 @@ class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
                         MaterialPageRoute(
                           builder: (_) => DiseaseRiskForm(
                             diseaseName: _diseaseCards[i],
-                            diseaseIndex:
-                                i, // maps directly to backend “disease”
+                            diseaseIndex: i,
                           ),
                         ),
                       );
@@ -419,7 +698,6 @@ class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
                   );
                 },
               ),
-              // --------------------------------------------------------------------
             ],
           ),
         ),
@@ -434,6 +712,130 @@ class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
         Text(k, style: const TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         Text(v),
+      ],
+    );
+  }
+}
+
+// ---- Renderers for LLM JSON ----
+
+class _AdviceView extends StatelessWidget {
+  final Map<String, dynamic> advice;
+  const _AdviceView({required this.advice});
+
+  Widget _bullets(List list) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: list
+            .map<Widget>((e) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('• '),
+                      Expanded(child: Text(e.toString())),
+                    ],
+                  ),
+                ))
+            .toList(),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final s = advice;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (s['summary'] != null) ...[
+          Text(s['summary'],
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 12),
+        ],
+        if (s['cultural_practices'] != null) ...[
+          const Text('Cultural practices',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          _bullets(List.from(s['cultural_practices'])),
+          const SizedBox(height: 12),
+        ],
+        if (s['sanitation_practices'] != null) ...[
+          const Text('Sanitation practices',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          _bullets(List.from(s['sanitation_practices'])),
+          const SizedBox(height: 12),
+        ],
+        if (s['monitoring'] != null) ...[
+          const Text('Monitoring',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          _bullets(List.from(s['monitoring'])),
+          const SizedBox(height: 12),
+        ],
+        if (s['resistant_varieties'] != null) ...[
+          const Text('Resistant varieties',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          _bullets(List.from(s['resistant_varieties'])),
+          const SizedBox(height: 12),
+        ],
+        if (s['ipm'] != null) ...[
+          const Text('Integrated Pest Management',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          _bullets(List.from(s['ipm'])),
+          const SizedBox(height: 12),
+        ],
+        if (s['disclaimer'] != null)
+          Text(s['disclaimer'], style: const TextStyle(color: Colors.grey)),
+      ],
+    );
+  }
+}
+
+class _FertilizerView extends StatelessWidget {
+  final Map<String, dynamic> data;
+  const _FertilizerView({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final recs = (data['recommendations'] as List?) ?? const [];
+    final schedule = (data['schedule'] as List?) ?? const [];
+    final notes = data['notes']?.toString();
+
+    Widget bullets(List l) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: l
+              .map<Widget>((e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('• '),
+                        Expanded(child: Text(e.toString())),
+                      ],
+                    ),
+                  ))
+              .toList(),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (recs.isNotEmpty) ...[
+          const Text('Recommendations',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          bullets(recs),
+          const SizedBox(height: 12),
+        ],
+        if (schedule.isNotEmpty) ...[
+          const Text('Schedule', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          bullets(schedule),
+          const SizedBox(height: 12),
+        ],
+        if (notes != null && notes.isNotEmpty)
+          Text(notes, style: const TextStyle(color: Colors.grey)),
       ],
     );
   }

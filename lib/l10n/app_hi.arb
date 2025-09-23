@@ -79,5 +79,13 @@
     "placeholders": {
       "error": { "type": "String", "example": "नेटवर्क त्रुटि" }
     }
-  }
+  },
+  "userNotLoggedIn": "उपयोगकर्ता लॉग इन नहीं है।",
+  "predictionHistoryTitle": "भाकीत इतिहास",
+  "noPredictionsFound": "इस उपयोगकर्ता के लिए कोई भाकीत नहीं मिला।",
+  "confidenceLabel": "विश्वसनीयता",
+  "dateLabel": "तारीख",
+  "viewPreviousPredictions": "View Previous Predictions",
+  "errorMessage": "त्रुटि: {error}"
+
 }

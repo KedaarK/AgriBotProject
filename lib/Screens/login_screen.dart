@@ -110,6 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
               builder: (_) => BottomNavigation(
+                    userEmail: email,
                     onChangeLanguage: widget.onChangeLanguage,
                   )),
           (route) => false,

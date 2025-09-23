@@ -50,7 +50,8 @@ class AuthService {
 
       _showToast(context, "Signup Successful!");
 
-      _redirectBasedOnRole(role, context, onChangeLanguage); // <-- pass it
+      _redirectBasedOnRole(
+          email, role, context, onChangeLanguage); // <-- pass it
     } on FirebaseAuthException catch (e) {
       _showErrorMessage(context, e.code);
     } catch (e) {
@@ -86,7 +87,8 @@ class AuthService {
       }
 
       final String role = userData['role'] as String;
-      _redirectBasedOnRole(role, context, onChangeLanguage); // <-- pass it
+      _redirectBasedOnRole(
+          email, role, context, onChangeLanguage); // <-- pass it
     } on FirebaseAuthException catch (e) {
       _showErrorMessage(context, e.code);
     } catch (e) {
@@ -97,6 +99,7 @@ class AuthService {
 
   // REDIRECT BASED ON ROLE
   void _redirectBasedOnRole(
+    String email,
     String role,
     BuildContext context,
     void Function(Locale) onChangeLanguage, // <-- accept it
@@ -108,8 +111,10 @@ class AuthService {
 
     late final Widget targetScreen;
     if (role == "farmer") {
-      targetScreen =
-          BottomNavigation(onChangeLanguage: onChangeLanguage); // <-- use it
+      targetScreen = BottomNavigation(
+        onChangeLanguage: onChangeLanguage,
+        userEmail: email,
+      ); // <-- use it
     } else if (role == "agronomist") {
       targetScreen =
           const AgronomistDashboard(); // add language button later if needed

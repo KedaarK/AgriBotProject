@@ -40,6 +40,11 @@ firebase.json
 /backend/uploads
 /backend/static
 /lib/Models
+/backend/.env
+/backend/agribot-c1b43-firebase-adminsdk-fbsvc-d1cd9b3b33.json
+/backend/AgroApp_dataset_with_date.csv
+/backend/drip_feeder.py
+/backend/import_dataset.py
 
 
 

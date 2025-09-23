@@ -608,7 +608,7 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     ];
 
-    final int itemCount = _itemsToShow + 2;
+    final int itemCount = services.length + 2;
 
     return Scaffold(
       appBar: AppBar(

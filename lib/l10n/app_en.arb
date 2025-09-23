@@ -97,5 +97,12 @@
     "placeholders": {
       "error": { "type": "String", "example": "Network error" }
     }
-  }
+  },
+  "userNotLoggedIn": "User is not logged in.",
+  "predictionHistoryTitle": "Prediction History",
+  "noPredictionsFound": "No predictions found for this user.",
+  "confidenceLabel": "Confidence",
+  "dateLabel": "Date",
+  "viewPreviousPredictions": "View Previous Predictions",
+  "errorMessage": "Error: {error}"
 }
