@@ -8,7 +8,7 @@ if not API_KEY:
 
 genai.configure(api_key=API_KEY)
 
-_MODEL = "gemini-1.5-flash"
+_MODEL = "gemini-2.0-flash"
 
 def _mk_model():
     return genai.GenerativeModel(
@@ -20,6 +20,8 @@ def _mk_model():
             "max_output_tokens": 768,
         },
     )
+
+# ---------------- Your existing prompts (kept intact) ----------------
 
 def disease_prevention_prompt(disease_name: str, crop_name: str, locale: str = "en") -> str:
     return f"""
@@ -61,9 +63,17 @@ FORMAT: Return JSON with fields:
 Only return JSON, no extra text.
 """
 
-def market_quote_prompt(crop: str, market_name: str, market_city: str, unit_price: float,
-                        quantity: float, unit: str, transport_km: float, transport_rate_per_km: float,
-                        locale: str = "en") -> str:
+def market_quote_prompt(
+    crop: str,
+    market_name: str,
+    market_city: str,
+    unit_price: float,
+    quantity: float,
+    unit: str,
+    transport_km: float,
+    transport_rate_per_km: float,
+    locale: str = "en",
+) -> str:
     return f"""
 You are an agricultural marketing assistant. Explain simply.
 
@@ -81,15 +91,68 @@ TASK:
 3) Total = subtotal + transport cost.
 
 FORMAT: Return JSON:
-- "breakdown": {{"unit_price": number, "quantity": number, "subtotal": number,
-                "transport_km": number, "transport_rate_per_km": number, "transport_cost": number}}
-- "total": number
+- "breakdown": {{
+    "unit_price": {unit_price:.2f},
+    "quantity": {quantity},
+    "subtotal": {unit_price * quantity:.2f},
+    "transport_km": {transport_km},
+    "transport_rate_per_km": {transport_rate_per_km:.2f},
+    "transport_cost": {(transport_km * transport_rate_per_km):.2f}
+  }}
+- "total": {(unit_price * quantity + transport_km * transport_rate_per_km):.2f}
 - "notes": array of short bullets with assumptions and caveats
 - "disclaimer": short sentence about price volatility
 
 Language: {locale}
 Only return JSON.
 """
+
+# ---------------- Friend’s new prompts (merged in) ----------------
+
+def crop_solution_prompt(disease_name: str, crop_name: str, locale: str = "en") -> str:
+    return f"""
+You are an agronomy assistant. TASK: Provide actionable TREATMENT & SOLUTION guidance for the disease.
+CROP: {crop_name}
+DISEASE: {disease_name}
+LANGUAGE: {locale}
+
+FORMAT: Return JSON:
+- "summary": 1–2 sentence overview
+- "treatment_practices": array of short actionable bullets (3–6)
+- "organic_remedies": array of short bullets (0–3)
+- "disclaimer": short sentence reminding to check local guidelines
+Only return JSON, no extra text.
+"""
+
+def crop_waste_management_prompt(crop_name: str, locale: str = "en") -> str:
+    return f"""
+You are an agronomy assistant. TASK: Provide ways to manage crop residues or waste efficiently.
+CROP: {crop_name}
+LANGUAGE: {locale}
+
+FORMAT: Return JSON:
+- "summary": 1–2 sentences
+- "recycling_methods": array of short bullets (3–6)
+- "usage_tips": array of short bullets (2–4)
+- "disclaimer": short sentence about environmental safety
+Only return JSON, no extra text.
+"""
+
+def soil_suitability_prompt(crop_name: str, soil_type: str, locale: str = "en") -> str:
+    return f"""
+You are an agronomy assistant. TASK: Advise if the soil is suitable for the crop, and recommend adjustments if not.
+CROP: {crop_name}
+SOIL: {soil_type}
+LANGUAGE: {locale}
+
+FORMAT: Return JSON:
+- "suitability": "suitable" or "unsuitable"
+- "recommendations": array of short actionable bullets (3–6) if unsuitable
+- "disclaimer": short sentence advising local testing
+Only return JSON, no extra text.
+"""
+
+# ---------------- Helpers ----------------
 
 def _strip_code_fences(txt: str) -> str:
     # Remove ```json ... ``` or ``` ... ```
@@ -105,17 +168,20 @@ def run_json_prompt(prompt: str) -> dict:
     model = _mk_model()
     resp = model.generate_content(prompt)
 
-    # Prefer the top candidate's text
+    # Prefer the top-level text; fallback to candidates
     txt = (resp.text or "").strip()
-    if not txt and resp.candidates:
-        txt = (resp.candidates[0].content.parts[0].text or "").strip()
+    if not txt and getattr(resp, "candidates", None):
+        try:
+            txt = (resp.candidates[0].content.parts[0].text or "").strip()
+        except Exception:
+            txt = ""
 
     txt = _strip_code_fences(txt)
 
     try:
         return json.loads(txt)
     except json.JSONDecodeError:
-        # Final fallback: try to extract the first JSON object
+        # Final fallback: extract first JSON object
         m = re.search(r"\{.*\}", txt, re.DOTALL)
         if m:
             return json.loads(m.group(0))

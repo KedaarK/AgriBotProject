@@ -1,5 +1,6 @@
 import 'package:agribot/Screens/analytics_screen.dart';
 import 'package:agribot/Screens/analytics_screen2.dart';
+import 'package:agribot/Screens/chat_screen.dart';
 import 'package:agribot/Screens/disease_detection_screen.dart';
 import 'package:agribot/Screens/home_screen.dart';
 import 'package:agribot/Screens/setting_screen.dart';
@@ -30,11 +31,14 @@ class _BottomNavigationState extends State<BottomNavigation> {
   void initState() {
     super.initState();
     pages = [
-      HomeScreen(onChangeLanguage: widget.onChangeLanguage), // ← pass it
+      HomeScreen(
+          userEmail: widget.userEmail,
+          onChangeLanguage: widget.onChangeLanguage), // ← pass it
       DiseaseDetectionScreen(
           userEmail: widget.userEmail,
           onChangeLanguage: widget.onChangeLanguage),
       const AnalyticsScreen2(),
+      const ChatScreen(),
       const SettingScreen(), // add a language button here later if you want
     ];
   }

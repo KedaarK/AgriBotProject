@@ -397,8 +397,10 @@
 # if __name__ == '__main__':
 #     app.run(host='0.0.0.0',port=5000,debug=True)
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response,stream_with_context
+import traceback
 import os, io, re, time, random, pickle
+import pandas as pd
 import numpy as np
 import tensorflow as tf
 from PIL import Image
@@ -426,6 +428,7 @@ EMAIL_PASSWORD = "mbjr vwxl mmes gmln"
 # Load disease model (only this one)
 # =========================
 PLANT_MODEL_PATH = "models/plant_disease_model.keras"
+# PLANT_MODEL_PATH = "models/rice_leaf_model.keras"
 plant_disease_model = tf.keras.models.load_model(PLANT_MODEL_PATH)
 
 # Map your indices to model filenames
@@ -453,6 +456,138 @@ for idx, fname in _RISK_MODEL_FILES.items():
 # =========================
 # Risk scoring endpoint
 # =========================
+# app.py
+@app.post("/api/chat")
+def chat():
+    try:
+        data = request.get_json(force=True) or {}
+        message = (data.get("message") or "").strip()
+        locale  = (data.get("locale") or "en").strip()
+        ctx     = data.get("context") or {}
+
+        if not message:
+            return jsonify({"error": "Missing 'message'"}), 400
+
+        # Determine if context is "empty" or missing metrics
+        has_metrics = any(ctx.get(k) is not None for k in [
+            "maxTemp","minTemp","rainfall","rainyDays",
+            "sunHours","soilMoisture","soilPh","nitrogen","potassium","salinity"
+        ])
+
+        if has_metrics:
+            # Contextual prompt
+            ctx_lines = [
+                f"{k}: {v}" for k, v in ctx.items() if v is not None
+            ]
+            ctx_block = "\n".join(ctx_lines)
+            prompt = f"""
+You are AgriBot, a precise agronomy assistant. LANGUAGE: {locale}
+Use the provided METRICS. Tie every recommendation to the actual numbers below.
+
+METRICS:
+{ctx_block}
+
+INSTRUCTIONS:
+- Address the user's request directly and concisely.
+- Give 5–8 specific actions with numeric targets (rates, ranges, thresholds).
+- Cite WHICH metric(s) triggered each action.
+- If a metric is missing, say "no data".
+- Prefer field units (kg/ha, mm, hours, pH, EC).
+
+USER:
+{message}
+
+ASSISTANT:
+""".strip()
+        else:
+            # Generic prompt fallback
+            prompt = f"""
+You are AgriBot, an agronomy assistant. LANGUAGE: {locale}
+The user asked a general farming question (no sensor metrics provided).
+Provide practical, concise, actionable advice for a farmer.
+
+USER:
+{message}
+
+ASSISTANT:
+""".strip()
+
+        # Generate the response
+        model = llm._mk_model()
+        resp = model.generate_content(prompt)
+        text = (getattr(resp, "text", None) or "").strip()
+        if not text and getattr(resp, "candidates", None):
+            try:
+                text = (resp.candidates[0].content.parts[0].text or "").strip()
+            except Exception:
+                text = ""
+
+        if not text:
+            raise RuntimeError("Empty model response")
+        return jsonify({"reply": text}), 200
+
+    except Exception as e:
+        app.logger.error(f"/api/chat error: {e}\n{traceback.format_exc()}")
+        code = 429 if "quota" in str(e).lower() or "429" in str(e) else 500
+        return jsonify({"error": str(e)}), code
+
+
+
+@app.post("/api/chat/stream")
+def chat_stream():
+    """
+    Optional: Server-Sent Events (SSE) streaming chat.
+    Request: { "message": "...", "locale": "en" }
+    Response: text/event-stream (lines starting with 'data: ')
+    """
+    try:
+        data = request.get_json(force=True) or {}
+        message = (data.get("message") or "").strip()
+        locale = (data.get("locale") or "en").strip()
+        if not message:
+            return jsonify({"error": "Missing 'message'"}), 400
+
+        prompt = f"""
+You are AgriBot, a concise agronomy assistant. LANGUAGE: {locale}
+Stream your answer in short chunks.
+
+User: {message}
+Assistant:
+        """.strip()
+
+        # The python SDK’s easiest path is non-streaming; for true token streams,
+        # you can use the REST responses with chunking or the SDK’s async stream.
+        # Here we simulate chunking by splitting final text; replace with true streaming if you enable it.
+        model = llm._mk_model()
+        resp = model.generate_content(prompt)
+        text = (getattr(resp, "text", None) or "").strip()
+        if not text and getattr(resp, "candidates", None):
+            try:
+                text = (resp.candidates[0].content.parts[0].text or "").strip()
+            except Exception:
+                text = ""
+
+        @stream_with_context
+        def generate():
+            if not text:
+                yield "data: \n\n"
+                return
+            # naive chunker by sentence
+            for chunk in text.split(". "):
+                chunk = chunk.strip()
+                if not chunk:
+                    continue
+                yield f"data: {chunk}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return Response(generate(), mimetype="text/event-stream")
+
+    except Exception as e:
+        app.logger.error(f"/api/chat/stream error: {e}\n{traceback.format_exc()}")
+        code = 429 if "quota" in str(e).lower() or "429" in str(e) else 500
+        return jsonify({"error": str(e)}), code
+
+
 @app.route("/api/llm/prevention", methods=["POST"])
 def llm_prevention():
     try:
@@ -530,7 +665,16 @@ def llm_fertilizer():
         }
         code = 429 if "quota" in str(e).lower() or "429" in str(e) else 500
         return jsonify({"_fallback": True, **fallback, "error": str(e)}), code
+    
 
+
+def _softmax(xs):
+    xs = np.asarray(xs, dtype=float)
+    # numeric stability
+    m = np.max(xs)
+    exp = np.exp(xs - m)
+    s = np.sum(exp)
+    return exp / s if s > 0 else np.zeros_like(xs)
     
 @app.route('/risk/add', methods=['POST'])
 def risk_add():
@@ -538,34 +682,93 @@ def risk_add():
     Expects JSON:
     {
       "values": [stage, maxTemp, minTemp, relH1, relH2, rainfall, rainyDays,
-                 sunHours, windSpeed, soilPh, nitrogen, potassium, salinity],
-      "disease": <int 0..5>
+                 sunHours, windSpeed, soilPh, nitrogen, potassium, salinity]
     }
-    Returns: { "prediction": <float> }
+    Returns: { "diseases": [{ "disease": <int>, "value": <float> }, ...] }
     """
     try:
-        data = request.get_json(force=True, silent=False) or {}
+        print(f"[DEBUG] Request received. Content-Type: {request.content_type}")
+        
+        # Get JSON data
+        data = request.get_json()
+        print(f"[DEBUG] Parsed JSON data: {data}")
+        
+        if not data:
+            print("[ERROR] No JSON data provided")
+            return jsonify({"error": "No JSON data provided"}), 400
+            
         values = data.get('values')
-        disease = data.get('disease')
+        print(f"[DEBUG] Values received: {values} (type: {type(values)})")
 
-        if not isinstance(values, list) or len(values) != 13:
-            return jsonify({"error": "Expected 13 numeric values in 'values'"}), 400
-        if not isinstance(disease, int) or disease not in RISK_MODELS:
-            return jsonify({"error": "Unknown or unloaded disease index"}), 400
+        # Validate input
+        if not isinstance(values, list):
+            print(f"[ERROR] Values is not a list: {type(values)}")
+            return jsonify({"error": "'values' must be a list"}), 400
+            
+        if len(values) != 13:
+            print(f"[ERROR] Wrong number of values: {len(values)}")
+            return jsonify({"error": f"Expected 13 numeric values, got {len(values)}"}), 400
 
-        X = np.array(values, dtype=float).reshape(1, -1)
+        # Convert to float and validate all values are numeric
+        try:
+            float_values = [float(v) for v in values]
+            print(f"[DEBUG] Converted to floats: {float_values}")
+        except (ValueError, TypeError) as e:
+            print(f"[ERROR] Value conversion failed: {e}")
+            return jsonify({"error": f"All values must be numeric. Error: {str(e)}"}), 400
 
-        # NOTE:
-        # If you trained with a scaler/encoder, you should have saved a Pipeline and load it here.
-        # These joblib files should encapsulate any preprocessing.
-        model = RISK_MODELS[disease]
-        y_pred = model.predict(X)
-        pred = float(y_pred[0])
+        # Check if models are loaded
+        if not RISK_MODELS:
+            print("[ERROR] No risk models loaded!")
+            return jsonify({"error": "No disease models available"}), 500
+            
+        print(f"[DEBUG] Available models: {list(RISK_MODELS.keys())}")
 
-        return jsonify({"prediction": pred}), 200
+        # Reshape the input values for the model
+        X = np.array(float_values, dtype=float).reshape(1, -1)
+        print(f"[DEBUG] Input shape for models: {X.shape}")
+
+        # List to store disease indices along with their predicted regression values
+        diseases = []
+
+        # Iterate through all models to get the predicted values for each disease
+        for disease_idx, model in RISK_MODELS.items():
+            try:
+                print(f"[DEBUG] Making prediction for disease {disease_idx}")
+                y_pred = model.predict(X)  # Make a prediction for this disease model
+                pred = float(y_pred[0])  # Extract the predicted value
+                diseases.append({"disease": disease_idx, "value": pred})
+                print(f"[DEBUG] Disease {disease_idx}: prediction = {pred}")
+            except Exception as model_error:
+                # Log the error but continue with other models
+                print(f"[ERROR] Error predicting for disease {disease_idx}: {model_error}")
+                continue
+
+        print(f"[DEBUG] All predictions: {diseases}")
+
+        if not diseases:
+            print("[ERROR] No valid predictions could be made")
+            return jsonify({"error": "No valid predictions could be made"}), 500
+
+        # Sort the diseases based on the predicted regression values (highest first)
+        diseases.sort(key=lambda x: x['value'], reverse=True)
+        print(f"[DEBUG] Sorted predictions: {diseases}")
+
+        # Return the top 3 diseases along with their regression values
+        top_diseases = diseases[:3]
+        print(f"[DEBUG] Top 3 diseases: {top_diseases}")
+
+        response_data = {"diseases": top_diseases}
+        print(f"[DEBUG] Final response: {response_data}")
+        
+        return jsonify(response_data), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"[ERROR] Unexpected error in risk_add: {e}")
+        print(f"[ERROR] Error type: {type(e).__name__}")
+        import traceback
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 # ---- helpers to align preprocessing with training ----
 def _model_has_rescaling(m):
@@ -599,7 +802,7 @@ print(f"[INIT] has_rescaling={_HAS_RESCALING}  target_size={_TARGET_SIZE}")
 # Class names
 # Try to load from JSON saved during training; else fallback to your list.
 # =========================
-
+# CLASS_NAMES = ['bacterial_leaf_blight', 'blast', 'brownspot']
 CLASS_NAMES = [
     'Apple___Apple_scab', 'Apple___Black_rot', 'Apple___Cedar_apple_rust', 'Apple___healthy',
     'Blueberry___healthy', 'Cherry_(including_sour)___Powdery_mildew', 'Cherry_(including_sour)___healthy',
@@ -735,6 +938,7 @@ mx = pickle.load(open('models/minmaxscaler.pkl', 'rb'))
 @app.route('/api/crop_recommend', methods=['POST'])
 def crop_recommend():
     try:
+        # Extract values from request
         N = int(request.json['N'])
         P = int(request.json['P'])
         K = int(request.json['K'])
@@ -742,11 +946,25 @@ def crop_recommend():
         humidity = float(request.json['humidity'])
         ph = float(request.json['ph'])
         rainfall = float(request.json['rainfall'])
-        feature_list = [N, P, K, temperature, humidity, ph, rainfall]
-        single_pred = np.array(feature_list).reshape(1, -1)
-        mx_features = mx.transform(single_pred)
+
+        # Make a DataFrame with the same columns as used in training
+        df = pd.DataFrame([{
+            'N': N,
+            'P': P,
+            'K': K,
+            'temperature': temperature,
+            'humidity': humidity,
+            'ph': ph,
+            'rainfall': rainfall
+        }])
+
+        # Apply MinMaxScaler and StandardScaler
+        mx_features = mx.transform(df)
         sc_mx_features = sc.transform(mx_features)
+
+        # Predict crop
         prediction = model2.predict(sc_mx_features)[0]
+
         crop_dict = {
             1: "Rice", 2: "Maize", 3: "Jute", 4: "Cotton", 5: "Coconut",
             6: "Papaya", 7: "Orange", 8: "Apple", 9: "Muskmelon", 10: "Watermelon",
@@ -754,10 +972,13 @@ def crop_recommend():
             15: "Lentil", 16: "Blackgram", 17: "Mungbean", 18: "Mothbeans",
             19: "Pigeonpeas", 20: "Kidneybeans", 21: "Chickpea", 22: "Coffee"
         }
+
         recommended_crop = crop_dict.get(prediction, "Unknown Crop")
         return jsonify({"recommended_crop": recommended_crop})
+
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
 
 # =========================
 # OTP endpoints (unchanged)

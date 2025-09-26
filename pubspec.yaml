@@ -103,9 +103,9 @@ flutter:
     - assets/images/Home.png
     - assets/images/crop_selection.jpg
     - assets/images/fertilizer.jpg
-    - assets/images/qrcode1.jpg
-    - assets/images/qrcode2.PNG
-    - assets/videos/agribot_video.mp4
+    - assets/images/chatbot.jpg
+    - assets/images/disease.jpg
+    # - assets/videos/agribot_video.mp4
 
     # these is ml model which is getting used
   #   - images/a_dot_ham.jpeg

@@ -491,54 +491,34 @@
 // }
 // ################################################################3
 
+import 'package:agribot/Screens/chat_screen.dart';
+import 'package:agribot/Screens/disease_detection_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:agribot/Providers/weather_provider.dart';
-import 'package:agribot/screens/recommendation_page.dart';
-import 'package:agribot/Services/performance_service.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:agribot/Widgets/service_card.dart';
 
+// NOTE: removed these because weather is gone
+// import 'package:provider/provider.dart';
+// import 'package:agribot/Providers/weather_provider.dart';
+// import 'package:agribot/Widgets/weather_widget.dart';
+import 'package:agribot/screens/recommendation_page.dart';
+import 'package:agribot/Services/performance_service.dart'; // if unused, you can remove
+
 class HomeScreen extends StatefulWidget {
-  final void Function(Locale) onChangeLanguage; // <-- add this
-  const HomeScreen({required this.onChangeLanguage, super.key});
+  final void Function(Locale) onChangeLanguage;
+  final String userEmail;
+  const HomeScreen({
+    required this.userEmail,
+    required this.onChangeLanguage,
+    super.key,
+  });
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String errorMessage = "";
   final ScrollController _scrollController = ScrollController();
-  final int _itemsToShow = 10;
-
-  @override
-  void initState() {
-    super.initState();
-    fetchWeather();
-  }
-
-  Future<void> fetchWeather() async {
-    try {
-      await PerformanceService().trackOperation(
-        traceName: 'fetch_weather_no_lazy',
-        operation: () =>
-            Provider.of<WeatherProvider>(context, listen: false).fetchWeather(),
-      );
-    } catch (e) {
-      setState(() {
-        errorMessage = e.toString();
-      });
-    }
-  }
-
-  String capitalizeEachWord(String text) {
-    if (text.isEmpty) return text;
-    return text
-        .split(' ')
-        .map((w) => w.isEmpty ? w : (w[0].toUpperCase() + w.substring(1)))
-        .join(' ');
-  }
 
   void _showLanguageDialog() {
     final l10n = AppLocalizations.of(context)!;
@@ -582,12 +562,24 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final weatherProvider = Provider.of<WeatherProvider>(context);
-    final weather = weatherProvider.weather;
     final size = MediaQuery.of(context).size;
 
-    // Build localized services list (UI unchanged; just strings come from ARB)
     final List<Map<String, dynamic>> services = [
+      {
+        'title': l10n.serviceChatBotTitle,
+        'subtitle': l10n.chatbotSubtitle,
+        'image': 'assets/images/chatbot.jpg',
+        'onTap': () => ChatScreen(),
+      },
+      {
+        'title': l10n.diseaseDetectionTitle,
+        'subtitle': l10n.diseaseDetectionSubtitle,
+        'image': 'assets/images/disease.jpg',
+        'onTap': () => DiseaseDetectionScreen(
+              userEmail: widget.userEmail,
+              onChangeLanguage: widget.onChangeLanguage,
+            ),
+      },
       {
         'title': l10n.serviceCropRecommendationTitle,
         'subtitle': l10n.serviceCropRecommendationSubtitle,
@@ -600,15 +592,10 @@ class _HomeScreenState extends State<HomeScreen> {
         'image': 'assets/images/fertilizer.jpg',
         'onTap': null,
       },
-      {
-        'title': l10n.serviceIrrigationAdviceTitle,
-        'subtitle': l10n.serviceIrrigationAdviceSubtitle,
-        'image': 'assets/images/crop_selection.jpg',
-        'onTap': null,
-      },
     ];
 
-    final int itemCount = services.length + 2;
+    // Header + services
+    final int itemCount = 1 + services.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -628,8 +615,7 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: itemCount,
         itemBuilder: (context, index) {
           if (index == 0) {
-            return _buildWeatherCard(weatherProvider, weather, size);
-          } else if (index == 1) {
+            // Header: "Products & Services"
             return Padding(
               padding: EdgeInsets.only(bottom: size.height * 0.015),
               child: Text(
@@ -641,73 +627,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             );
           } else {
-            final service = services[index - 2];
+            // Services list (shift by 1 because header is index 0)
+            final service = services[index - 1];
             return ServiceCard(service: service);
           }
         },
-      ),
-    );
-  }
-
-  Widget _buildWeatherCard(
-      WeatherProvider weatherProvider, dynamic weather, Size size) {
-    final l10n = AppLocalizations.of(context)!;
-
-    if (errorMessage.isNotEmpty) {
-      return Container(
-        padding: EdgeInsets.all(size.width * 0.03),
-        color: Colors.red[100],
-        child: Text(errorMessage, style: const TextStyle(color: Colors.red)),
-      );
-    }
-
-    if (weatherProvider.isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (weather == null) {
-      return Center(child: Text(l10n.errorLoadingWeather));
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: EdgeInsets.all(size.width * 0.04),
-      decoration: BoxDecoration(
-        color: Colors.green[100],
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            l10n.weatherLabel,
-            style: TextStyle(
-              fontSize: size.width * 0.05,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: size.height * 0.01),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(l10n.nowLabel),
-                  Text(capitalizeEachWord(weather.description)),
-                ],
-              ),
-              Text(
-                "${weather.temperature}°C",
-                style: TextStyle(
-                  fontSize: size.width * 0.08,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Icon(Icons.cloud, color: Colors.blue),
-            ],
-          ),
-        ],
       ),
     );
   }

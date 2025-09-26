@@ -3,13 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:agribot/Services/api_service.dart';
 
 class DiseaseRiskForm extends StatefulWidget {
-  final String diseaseName;
-  final int diseaseIndex;
-  const DiseaseRiskForm({
-    Key? key,
-    required this.diseaseName,
-    required this.diseaseIndex,
-  }) : super(key: key);
+  const DiseaseRiskForm({Key? key}) : super(key: key);
 
   @override
   State<DiseaseRiskForm> createState() => _DiseaseRiskFormState();
@@ -18,6 +12,16 @@ class DiseaseRiskForm extends StatefulWidget {
 class _DiseaseRiskFormState extends State<DiseaseRiskForm> {
   final _formKey = GlobalKey<FormState>();
   final _api = ApiService();
+
+  // Disease mapping - matches your backend model indices
+  final Map<int, String> _diseaseNames = {
+    0: 'Leaf Blast',
+    1: 'Neck Blast',
+    2: 'Glume Discoloration',
+    3: 'Sheath Rot',
+    4: 'Sheath Blight',
+    5: 'Brown Spot',
+  };
 
   // Controllers (keep order consistent with backend!)
   final _stage = TextEditingController();
@@ -35,7 +39,7 @@ class _DiseaseRiskFormState extends State<DiseaseRiskForm> {
   final _salinity = TextEditingController();
 
   bool _loading = false;
-  double? _prediction;
+  List<Map<String, dynamic>>? _predictions;
   String? _error;
 
   final _focus = List<FocusNode>.generate(13, (_) => FocusNode());
@@ -75,7 +79,7 @@ class _DiseaseRiskFormState extends State<DiseaseRiskForm> {
 
     setState(() {
       _loading = true;
-      _prediction = null;
+      _predictions = null;
       _error = null;
     });
 
@@ -96,15 +100,27 @@ class _DiseaseRiskFormState extends State<DiseaseRiskForm> {
         double.parse(_salinity.text.trim()),
       ];
 
-      final pred = await _api.estimateDiseaseRisk(
-        diseaseIndex: widget.diseaseIndex,
-        values: vals,
-      );
+      // Make the API call - this now returns List<Map<String, dynamic>>
+      final response = await _api.estimateDiseaseRisk(values: vals);
 
-      if (!mounted) return;
-      setState(() => _prediction = pred);
+      // Directly assign the response since it's already a List<Map<String, dynamic>>
+      setState(() {
+        _predictions = response;
+      });
     } catch (e) {
-      setState(() => _error = e.toString());
+      print('Error in disease risk prediction: $e');
+      setState(() {
+        if (e.toString().contains('SocketException')) {
+          _error =
+              'Network error: Please check your internet connection and ensure the server is running';
+        } else if (e.toString().contains('TimeoutException')) {
+          _error = 'Request timeout: The server is taking too long to respond';
+        } else if (e.toString().contains('FormatException')) {
+          _error = 'Invalid response format from server';
+        } else {
+          _error = 'Error: ${e.toString()}';
+        }
+      });
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -129,9 +145,25 @@ class _DiseaseRiskFormState extends State<DiseaseRiskForm> {
       c.clear();
     }
     setState(() {
-      _prediction = null;
+      _predictions = null;
       _error = null;
     });
+  }
+
+  // Helper method to get disease name from index
+  String _getDiseaseName(int diseaseIndex) {
+    return _diseaseNames[diseaseIndex] ?? 'Unknown Disease ($diseaseIndex)';
+  }
+
+  // Helper method to format prediction value
+  String _formatPrediction(double value) {
+    if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(1)}k';
+    } else if (value >= 100) {
+      return value.toStringAsFixed(0);
+    } else {
+      return value.toStringAsFixed(2);
+    }
   }
 
   @override
@@ -141,11 +173,13 @@ class _DiseaseRiskFormState extends State<DiseaseRiskForm> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.diseaseName),
+        title: const Text('Disease Risk Estimator'),
         actions: [
           IconButton(
             tooltip: 'Clear all',
-            onPressed: _loading ? null : _clearAll,
+            onPressed: _loading
+                ? null
+                : _clearAll, // Fixed: now calls _clearAll instead of dispose
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -156,7 +190,7 @@ class _DiseaseRiskFormState extends State<DiseaseRiskForm> {
           child: ListView(
             padding: EdgeInsets.fromLTRB(pad, 16, pad, 100),
             children: [
-              _headerCard(widget.diseaseName),
+              _headerCard('Enter Disease Parameters'),
               const SizedBox(height: 16),
               _sectionTitle('Crop & Soil'),
               _numField(
@@ -282,17 +316,79 @@ class _DiseaseRiskFormState extends State<DiseaseRiskForm> {
                   child: Text(_error!,
                       style: TextStyle(color: Colors.red.shade800)),
                 ),
-              if (_prediction != null)
+              if (_predictions != null)
                 _infoCard(
-                  title: 'Prediction',
+                  title: 'Disease Risk Predictions',
                   color: Colors.green.shade50,
                   borderColor: Colors.green.shade200,
-                  child: Text(
-                    _prediction!.toStringAsFixed(2),
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _predictions!.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final pred = entry.value;
+                      final diseaseIndex = pred['disease'] as int;
+                      final riskValue = pred['prediction'] as double;
+                      final diseaseName = _getDiseaseName(diseaseIndex);
+                      final formattedValue = _formatPrediction(riskValue);
+
+                      // Color coding based on rank
+                      Color textColor = Colors.green.shade800;
+                      String rankText = '';
+                      if (index == 0) {
+                        textColor = Colors.red.shade700;
+                        rankText = '🔴 HIGHEST RISK';
+                      } else if (index == 1) {
+                        textColor = Colors.orange.shade700;
+                        rankText = '🟡 MEDIUM RISK';
+                      } else {
+                        textColor = Colors.green.shade700;
+                        rankText = '🟢 LOW RISK';
+                      }
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: textColor.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              diseaseName,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Risk Score: $formattedValue',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: textColor.withOpacity(0.8),
+                                  ),
+                                ),
+                                Text(
+                                  rankText,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: textColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
             ],
@@ -321,7 +417,7 @@ class _DiseaseRiskFormState extends State<DiseaseRiskForm> {
                         strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.send_rounded, color: Colors.white),
             label: Text(
-              _loading ? 'Sending...' : 'Send',
+              _loading ? 'Analyzing...' : 'Analyze Disease Risk',
               style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,

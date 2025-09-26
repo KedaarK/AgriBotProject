@@ -104,5 +104,10 @@
   "errorMessage": "त्रुटी: {error}",
   "confidenceLabel": "निश्चितता",
   "viewPreviousPredictions": "View Previous Predictions",
+  "serviceChatBotTitle": "चॅटबॉट",
+  "chatbotSubtitle": "शेतीविषयक प्रश्नांची तात्काळ उत्तरे मिळवा.",
+  
+  "diseaseDetectionTitle": "रोग ओळख",
+  "diseaseDetectionSubtitle": "पिकांचे रोग लवकर ओळखा आणि उत्पादन सुरक्षित ठेवा.",
   "dateLabel": "तारीख"
 }

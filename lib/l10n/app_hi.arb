@@ -86,6 +86,12 @@
   "confidenceLabel": "विश्वसनीयता",
   "dateLabel": "तारीख",
   "viewPreviousPredictions": "View Previous Predictions",
+  "serviceChatBotTitle": "चैटबॉट",
+  "chatbotSubtitle": "खेती से जुड़े सवालों के तुरंत जवाब पाएं।",
+  
+  "diseaseDetectionTitle": "रोग पहचान",
+  "diseaseDetectionSubtitle": "फसलों के रोग समय पर पहचानें और पैदावार सुरक्षित करें।",
+
   "errorMessage": "त्रुटि: {error}"
 
 }

@@ -623,6 +623,8 @@ class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
               ),
 
               // Disease Risk Estimators
+
+              const SizedBox(height: 10),
               SizedBox(height: size.height * 0.03),
               Text(
                 'Disease Risk Estimators',
@@ -633,70 +635,41 @@ class _DiseaseDetectionScreenState extends State<DiseaseDetectionScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              GridView.builder(
-                itemCount: _diseaseCards.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 1.15,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                ),
-                itemBuilder: (context, i) {
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => DiseaseRiskForm(
-                            diseaseName: _diseaseCards[i],
-                            diseaseIndex: i,
-                          ),
-                        ),
-                      );
-                    },
-                    child: Ink(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.green.shade200),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.green.withOpacity(0.06),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+              Center(
+                child: ElevatedButton(
+                  onPressed: () {
+                    // Navigate to DiseaseRiskForm directly when the button is pressed
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            DiseaseRiskForm(), // Make sure DiseaseRiskForm is updated as needed
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.local_hospital,
-                                color: Colors.green[700], size: 28),
-                            const SizedBox(height: 12),
-                            Text(
-                              _diseaseCards[i],
-                              textAlign: TextAlign.center,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Tap to enter parameters',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                  fontSize: 12, color: Colors.grey[600]),
-                            ),
-                          ],
-                        ),
-                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(
+                      vertical: size.height *
+                          0.02, // Vertical padding based on screen size
+                      horizontal: size.width *
+                          0.22, // Horizontal padding based on screen width
                     ),
-                  );
-                },
+                    backgroundColor:
+                        Colors.green[700], // Background color for the button
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                          12), // Rounded corners for the button
+                    ),
+                  ),
+                  child: Text(
+                    'Start Disease Risk Estimation', // Button label
+                    style: const TextStyle(
+                      color: Colors.white, // White text color
+                      fontWeight: FontWeight.w600, // Button text weight
+                      fontSize: 14, // Button text size
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

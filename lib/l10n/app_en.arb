@@ -79,7 +79,7 @@
   "navHome": "Home",
   "navUpload": "Upload",
   "navAnalytics": "Analytics",
-  "navControls": "Controls",
+  "navControls": "ChatBot",
   "navSettings": "Settings",
   "diseaseDetectionTitle": "Plant Disease Detection",
   "uploadOrCaptureLeaf": "Upload or Capture Leaf Image",
@@ -104,5 +104,10 @@
   "confidenceLabel": "Confidence",
   "dateLabel": "Date",
   "viewPreviousPredictions": "View Previous Predictions",
+  "serviceChatBotTitle": "Chatbot",
+  "chatbotSubtitle": "Get instant answers to your farming questions.",
+  "diseaseDetectionTitle": "Disease Detection",
+  "diseaseDetectionSubtitle": "Detect crop diseases early and protect your yield.",
+
   "errorMessage": "Error: {error}"
 }

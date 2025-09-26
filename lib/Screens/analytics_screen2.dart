@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
+import 'package:agribot/Widgets/weather_widget.dart';
 
 enum TimeFilter { entire, month, week }
 
@@ -516,6 +517,19 @@ class _AnalyticsScreen2State extends State<AnalyticsScreen2> {
             padding: pad,
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                const SizedBox(height: 12),
+
+                // === WeatherWidget (exact same structure you used) ===
+                ListView(
+                  shrinkWrap: true,
+                  physics:
+                      const NeverScrollableScrollPhysics(), // disable inner scrolling
+                  children: [
+                    Row(
+                      children: [Expanded(child: WeatherWidget())],
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
 
                 // ========== LIVE (last 10) – now part of the same scroll ==========
